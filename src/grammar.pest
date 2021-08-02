@@ -1,0 +1,33 @@
+expr = { additive_expr }
+
+additive_expr = { multive_expr ~ ((plus | minus) ~ multive_expr)* }
+multive_expr = { primary_expr ~ ((ast | slash) ~ primary_expr)* }
+primary_expr = {
+    constant |
+    variable |
+    (left_paren ~ expr ~ right_paren)
+}
+
+constant = @{ digit+ }
+variable = { ident }
+left_paren = { "(" }
+right_paren = { ")" }
+plus = { "+" }
+minus = { "-" }
+ast = { "*" }
+slash = { "/" }
+
+alpha = {'a'..'z' | 'A'..'Z'}
+digit = {'0'..'9'}
+
+ident_tail = { alpha | digit }
+
+ident = @{ alpha ~ ident_tail* }
+
+WHITESPACE = _{ " " | "\t" | "\n" }
+
+inline_comment = _{ "//" ~ (!"\n" ~ ANY)* ~ "\n" }
+multiline_comment = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
+
+COMMENT = _{ inline_comment | multiline_comment }
+
