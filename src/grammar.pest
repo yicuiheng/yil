@@ -2,20 +2,33 @@ expr = { additive_expr }
 
 additive_expr = { multive_expr ~ ((plus | minus) ~ multive_expr)* }
 multive_expr = { primary_expr ~ ((ast | slash) ~ primary_expr)* }
+
 primary_expr = {
+    ifz_expr |
+    let_expr |
     constant |
     variable |
     (left_paren ~ expr ~ right_paren)
 }
 
+ifz_expr = { kw_ifz ~ expr ~ kw_then ~ expr ~ kw_else ~ expr }
+let_expr = { kw_let ~ ident ~ equal ~ expr ~ kw_in ~ expr }
 constant = @{ digit+ }
 variable = { ident }
+
 left_paren = { "(" }
 right_paren = { ")" }
 plus = { "+" }
 minus = { "-" }
 ast = { "*" }
 slash = { "/" }
+equal = { "=" }
+
+kw_ifz = { "ifz" }
+kw_then = { "then" }
+kw_else = { "else" }
+kw_let = { "let" }
+kw_in = { "in" }
 
 alpha = {'a'..'z' | 'A'..'Z'}
 digit = {'0'..'9'}
