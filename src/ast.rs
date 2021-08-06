@@ -19,6 +19,34 @@ impl<InfoT: Debug> Ident<InfoT> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
+pub enum BaseType<InfoT: Debug> {
+    Int(InfoT),
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Formula<InfoT: Debug> {
+    True(InfoT),
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct RefineType<InfoT: Debug> {
+    pub param_name: Ident<InfoT>,
+    pub base_type: BaseType<InfoT>,
+    pub formula: Formula<InfoT>,
+    pub info: InfoT,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct Func<InfoT: Debug> {
+    pub name: Ident<InfoT>,
+    pub params: Vec<RefineType<InfoT>>,
+    pub ret: RefineType<InfoT>,
+    pub is_rec: bool,
+    pub body: Expr<InfoT>,
+    pub info: InfoT,
+}
+
+#[derive(Debug, PartialEq, Eq)]
 pub struct Constant<InfoT: Debug> {
     pub val: i64,
     pub info: InfoT,

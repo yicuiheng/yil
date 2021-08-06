@@ -1,3 +1,11 @@
+func = { kw_rec? ~ kw_func ~ ident ~ refine_type* ~ colon ~ refine_type ~ paren_expr }
+
+refine_type = { left_paren ~ ident ~ colon ~ base_type ~ bar ~ formula ~ right_paren }
+
+formula = { kw_true }
+
+base_type = { kw_int }
+
 expr = { additive_expr }
 
 additive_expr = { multive_expr ~ ((plus | minus) ~ multive_expr)* }
@@ -8,34 +16,46 @@ primary_expr = {
     let_expr |
     constant |
     variable |
-    (left_paren ~ expr ~ right_paren)
+    paren_expr
 }
 
 ifz_expr = { kw_ifz ~ expr ~ kw_then ~ expr ~ kw_else ~ expr }
 let_expr = { kw_let ~ ident ~ equal ~ expr ~ kw_in ~ expr }
 constant = @{ digit+ }
 variable = { ident }
+paren_expr = { left_paren ~ expr ~ right_paren }
 
 left_paren = { "(" }
 right_paren = { ")" }
+left_brace = { "{" }
+right_brace = { "}" }
 plus = { "+" }
 minus = { "-" }
 ast = { "*" }
 slash = { "/" }
 equal = { "=" }
+colon = { ":" }
+bar = { "|" }
+
 
 kw_ifz = { "ifz" }
 kw_then = { "then" }
 kw_else = { "else" }
 kw_let = { "let" }
 kw_in = { "in" }
+kw_rec = { "rec" }
+kw_func = { "func" }
+kw_int = { "int" }
+kw_true = { "true" }
+
+keyword = { kw_ifz | kw_then | kw_else | kw_let | kw_in | kw_rec | kw_func | kw_int | kw_true }
 
 alpha = {'a'..'z' | 'A'..'Z'}
 digit = {'0'..'9'}
 
 ident_tail = { alpha | digit }
 
-ident = @{ alpha ~ ident_tail* }
+ident = @{ !keyword ~ alpha ~ ident_tail* }
 
 WHITESPACE = _{ " " | "\t" | "\n" }
 
