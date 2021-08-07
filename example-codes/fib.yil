@@ -1,6 +1,0 @@
-
-rec func fib (n:int | n >= 0) : (m:int | 2 * m = n * (n+1)) (
-  if n == 0 then 0
-  else n + fib (n-1)
-)
-

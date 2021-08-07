@@ -4,10 +4,36 @@ extern crate pest_derive;
 mod ast;
 mod parse;
 
-fn main() {
-    println!("hoge42: {:?}", parse::ident("hoge42"));
-    println!("42hoge: {:?}", parse::ident("42hoge"));
-    println!("42: {:?}", parse::ident("42"));
+use clap::{AppSettings, Clap};
 
-    println!("1 + 2 + 3: {:?}", parse::expr("1 + 2 + 3"));
+#[derive(Clap)]
+#[clap(version = "1.0", author = "yicuiheng <yicuiheng@gmail.com>")]
+#[clap(setting = AppSettings::ColoredHelp)]
+struct Opts {
+    filename: String,
+}
+
+fn main() {
+    let opts = Opts::parse();
+
+    let src = std::fs::read_to_string(opts.filename).expect("failed to read file..");
+
+    let parsed_func = parse::func(src.as_str()).unwrap_or_else(|e| {
+        use parse::ParseError::*;
+        match e {
+            UnexpectedToken {
+                expected,
+                unexpected,
+                pos,
+            } => {
+                eprintln!("positive: {:?}", expected);
+                eprintln!("negative: {:?}", unexpected);
+                eprintln!("pos: {:?}", pos);
+                std::process::exit(-1);
+            }
+            _ => unreachable!(),
+        }
+    });
+
+    println!("parsed func: {:?}", parsed_func);
 }
