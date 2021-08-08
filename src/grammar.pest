@@ -2,14 +2,25 @@ func = { kw_rec? ~ kw_func ~ ident ~ refine_type* ~ colon ~ refine_type ~ paren_
 
 refine_type = { left_paren ~ ident ~ colon ~ base_type ~ bar ~ formula ~ right_paren }
 
-formula = { kw_true }
+formula = { and_formula ~ (or ~ and_formula)* }
+and_formula = { binop_formula ~ (and ~ binop_formula)* }
+binop_formula = { kw_true | kw_false | (additive_logical_expr ~ (eq | neq | lt | leq | gt | geq) ~ additive_logical_expr) }
+additive_logical_expr = { multive_logical_expr ~ ((plus | minus) ~ multive_logical_expr)* }
+multive_logical_expr = { primary_logical_expr ~ ((ast | slash) ~ primary_logical_expr)* }
+primary_logical_expr = { ident | constant | left_paren ~ additive_logical_expr ~ right_paren }
 
 base_type = { kw_int }
 
-expr = { additive_expr }
+expr = { or_expr }
+
+or_expr = { and_expr ~ (or ~ and_expr)* }
+and_expr = { comp_expr ~ (and ~ comp_expr)* }
+comp_expr = { additive_expr ~ ((eq | neq | lt | leq | gt | geq) ~ additive_expr)* }
 
 additive_expr = { multive_expr ~ ((plus | minus) ~ multive_expr)* }
-multive_expr = { primary_expr ~ ((ast | slash) ~ primary_expr)* }
+multive_expr = { apply_expr ~ ((ast | slash) ~ apply_expr)* }
+
+apply_expr = { primary_expr ~ primary_expr* }
 
 primary_expr = {
     ifz_expr |
@@ -33,7 +44,15 @@ plus = { "+" }
 minus = { "-" }
 ast = { "*" }
 slash = { "/" }
+or = { "|" }
+and = { "&" }
 equal = { "=" }
+eq = { "=" }
+neq = { "<>" }
+lt = { "<" }
+leq = { "<=" }
+gt = { ">" }
+geq = { ">=" }
 colon = { ":" }
 bar = { "|" }
 
@@ -47,8 +66,9 @@ kw_rec = { "rec" }
 kw_func = { "func" }
 kw_int = { "int" }
 kw_true = { "true" }
+kw_false = { "false" }
 
-keyword = { kw_ifz | kw_then | kw_else | kw_let | kw_in | kw_rec | kw_func | kw_int | kw_true }
+keyword = { kw_ifz | kw_then | kw_else | kw_let | kw_in | kw_rec | kw_func | kw_int | kw_true | kw_false }
 
 alpha = {'a'..'z' | 'A'..'Z'}
 digit = {'0'..'9'}

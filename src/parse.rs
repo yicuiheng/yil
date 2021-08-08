@@ -1,5 +1,6 @@
 use crate::ast::parsed::{
-    BaseType, BinOp, Constant, Expr, Formula, Func, Ident, PosInfo, RefineType,
+    BaseType, BinOp, Constant, Expr, Formula, Func, Ident, LogicalBinOp, LogicalBinPred,
+    LogicalExpr, PosInfo, RefineType,
 };
 use pest::Parser;
 
@@ -28,6 +29,7 @@ fn rule_to_str(rule: Rule) -> &'static str {
         Rule::func => "function",
         Rule::refine_type => "refinement type",
         Rule::formula => "logical formula",
+        Rule::primary_logical_expr => "logical primary expr",
         Rule::base_type => "base type",
         Rule::expr => "expression",
         Rule::ifz_expr => "if-expresion",
@@ -44,6 +46,14 @@ fn rule_to_str(rule: Rule) -> &'static str {
         Rule::ast => "'*'",
         Rule::slash => "'/'",
         Rule::equal => "'='",
+        Rule::and => "&",
+        Rule::or => "|",
+        Rule::eq => "=",
+        Rule::neq => "<>",
+        Rule::lt => "<",
+        Rule::leq => "<=",
+        Rule::gt => ">",
+        Rule::geq => ">=",
         Rule::colon => "':'",
         Rule::bar => "'|'",
         Rule::kw_ifz => "'ifz'",
@@ -55,8 +65,12 @@ fn rule_to_str(rule: Rule) -> &'static str {
         Rule::kw_func => "'func'",
         Rule::kw_int => "'int'",
         Rule::kw_true => "'true'",
+        Rule::kw_false => "'false'",
         Rule::ident => "<ident>",
-        _ => unreachable!(),
+        rule => {
+            eprintln!("{:?}", rule);
+            unreachable!()
+        }
     }
 }
 
@@ -147,10 +161,185 @@ fn base_type_from_pair(pair: pest::iterators::Pair<Rule>) -> Result<BaseType, Pa
 }
 
 fn formula_from_pair(pair: pest::iterators::Pair<Rule>) -> Result<Formula, ParseError> {
-    let info = span_to_pos_info(&pair.as_span());
+    assert_eq!(pair.as_rule(), Rule::formula);
     let mut pairs = pair.into_inner();
-    match pairs.next().unwrap().as_rule() {
-        Rule::kw_true => Ok(Formula::True(info)),
+
+    let pair = pairs.next().unwrap();
+    let start_pos = pair.as_span().start();
+    assert_eq!(pair.as_rule(), Rule::and_formula);
+    let mut acc = and_formula_from_pair(pair)?;
+    while let Some(pair) = pairs.next() {
+        assert_eq!(pair.as_rule(), Rule::or);
+        let pair = pairs.next().unwrap();
+        assert_eq!(pair.as_rule(), Rule::and_formula);
+        let end_pos = pair.as_span().end();
+        acc = Formula::Or(
+            Box::new(acc),
+            Box::new(and_formula_from_pair(pair)?),
+            PosInfo {
+                start: start_pos,
+                end: end_pos,
+            },
+        );
+    }
+    Ok(acc)
+}
+
+fn and_formula_from_pair(pair: pest::iterators::Pair<Rule>) -> Result<Formula, ParseError> {
+    assert_eq!(pair.as_rule(), Rule::and_formula);
+    let mut pairs = pair.into_inner();
+
+    let pair = pairs.next().unwrap();
+    let start_pos = pair.as_span().start();
+    assert_eq!(pair.as_rule(), Rule::binop_formula);
+    let mut acc = binop_formula_from_pair(pair)?;
+    while let Some(pair) = pairs.next() {
+        assert_eq!(pair.as_rule(), Rule::and);
+        let pair = pairs.next().unwrap();
+        assert_eq!(pair.as_rule(), Rule::binop_formula);
+        let end_pos = pair.as_span().end();
+        acc = Formula::And(
+            Box::new(acc),
+            Box::new(binop_formula_from_pair(pair)?),
+            PosInfo {
+                start: start_pos,
+                end: end_pos,
+            },
+        );
+    }
+    Ok(acc)
+}
+
+fn binop_formula_from_pair(pair: pest::iterators::Pair<Rule>) -> Result<Formula, ParseError> {
+    assert_eq!(pair.as_rule(), Rule::binop_formula);
+    let mut pairs = pair.into_inner();
+
+    let pair = pairs.next().unwrap();
+    match pair.as_rule() {
+        Rule::kw_true => {
+            return Ok(Formula::True(span_to_pos_info(&pair.as_span())));
+        }
+        Rule::kw_false => {
+            return Ok(Formula::False(span_to_pos_info(&pair.as_span())));
+        }
+        _ => (),
+    }
+    let start_pos = pair.as_span().start();
+    assert_eq!(pair.as_rule(), Rule::additive_logical_expr);
+    let expr1 = additive_logical_expr_from_pair(pair)?;
+
+    let pair = pairs.next().unwrap();
+    let op_pos = span_to_pos_info(&pair.as_span());
+    let op = match pair.as_rule() {
+        Rule::eq => LogicalBinPred::Eq,
+        Rule::neq => LogicalBinPred::Neq,
+        Rule::lt => LogicalBinPred::Lt,
+        Rule::leq => LogicalBinPred::Leq,
+        Rule::gt => LogicalBinPred::Gt,
+        Rule::geq => LogicalBinPred::Geq,
+        r => {
+            eprintln!("{:?}", r);
+            unreachable!()
+        }
+    };
+    let pair = pairs.next().unwrap();
+    assert_eq!(pair.as_rule(), Rule::additive_logical_expr);
+    let end_pos = pair.as_span().end();
+
+    let expr2 = additive_logical_expr_from_pair(pair)?;
+
+    Ok(Formula::BinApp(
+        op(op_pos),
+        expr1,
+        expr2,
+        PosInfo {
+            start: start_pos,
+            end: end_pos,
+        },
+    ))
+}
+
+fn additive_logical_expr_from_pair(
+    pair: pest::iterators::Pair<Rule>,
+) -> Result<LogicalExpr, ParseError> {
+    assert_eq!(pair.as_rule(), Rule::additive_logical_expr);
+    let mut pairs = pair.into_inner();
+
+    let pair = pairs.next().unwrap();
+    let start_pos = pair.as_span().start();
+    assert_eq!(pair.as_rule(), Rule::multive_logical_expr);
+    let mut acc = multive_logical_expr_from_pair(pair)?;
+    while let Some(pair) = pairs.next() {
+        let op = match pair.as_rule() {
+            Rule::plus => LogicalBinOp::Add,
+            Rule::minus => LogicalBinOp::Sub,
+            _ => unreachable!(),
+        };
+        let op_pos = span_to_pos_info(&pair.as_span());
+        let pair = pairs.next().unwrap();
+        assert_eq!(pair.as_rule(), Rule::multive_logical_expr);
+        let end_pos = pair.as_span().end();
+        acc = LogicalExpr::BinApp(
+            op(op_pos),
+            Box::new(acc),
+            Box::new(multive_logical_expr_from_pair(pair)?),
+            PosInfo {
+                start: start_pos,
+                end: end_pos,
+            },
+        );
+    }
+    Ok(acc)
+}
+
+fn multive_logical_expr_from_pair(
+    pair: pest::iterators::Pair<Rule>,
+) -> Result<LogicalExpr, ParseError> {
+    assert_eq!(pair.as_rule(), Rule::multive_logical_expr);
+    let mut pairs = pair.into_inner();
+
+    let pair = pairs.next().unwrap();
+    let start_pos = pair.as_span().start();
+    assert_eq!(pair.as_rule(), Rule::primary_logical_expr);
+    let mut acc = primary_logical_expr_from_pair(pair)?;
+    while let Some(pair) = pairs.next() {
+        let op = match pair.as_rule() {
+            Rule::ast => LogicalBinOp::Mult,
+            Rule::slash => LogicalBinOp::Div,
+            _ => unreachable!(),
+        };
+        let op_pos = span_to_pos_info(&pair.as_span());
+        let pair = pairs.next().unwrap();
+        assert_eq!(pair.as_rule(), Rule::primary_logical_expr);
+        let end_pos = pair.as_span().end();
+        acc = LogicalExpr::BinApp(
+            op(op_pos),
+            Box::new(acc),
+            Box::new(primary_logical_expr_from_pair(pair)?),
+            PosInfo {
+                start: start_pos,
+                end: end_pos,
+            },
+        );
+    }
+    Ok(acc)
+}
+
+fn primary_logical_expr_from_pair(
+    pair: pest::iterators::Pair<Rule>,
+) -> Result<LogicalExpr, ParseError> {
+    assert_eq!(pair.as_rule(), Rule::primary_logical_expr);
+    let mut pairs = pair.into_inner();
+
+    let pair = pairs.next().unwrap();
+    match pair.as_rule() {
+        Rule::ident => Ok(LogicalExpr::Var(ident_from_pair(pair)?)),
+        Rule::constant => Ok(LogicalExpr::Constant(constant_from_pair(pair)?)),
+        Rule::left_paren => {
+            let e = additive_logical_expr_from_pair(pairs.next().unwrap())?;
+            assert_eq!(pairs.next().unwrap().as_rule(), Rule::right_paren);
+            Ok(e)
+        }
         _ => unreachable!(),
     }
 }
@@ -185,10 +374,93 @@ pub fn expr(str: &str) -> Result<Expr, ParseError> {
 
 fn expr_from_pair(pair: pest::iterators::Pair<Rule>) -> Result<Expr, ParseError> {
     let mut pairs = pair.into_inner();
-    let additive_expr_pair = pairs.next().unwrap();
-    assert_eq!(additive_expr_pair.as_rule(), Rule::additive_expr);
-    let head_additive_expr = additive_expr_from_pair(additive_expr_pair)?;
-    Ok(head_additive_expr)
+    let or_expr_pair = pairs.next().unwrap();
+    assert_eq!(or_expr_pair.as_rule(), Rule::or_expr);
+    let head_or_expr = or_expr_from_pair(or_expr_pair)?;
+    Ok(head_or_expr)
+}
+
+fn or_expr_from_pair(pair: pest::iterators::Pair<Rule>) -> Result<Expr, ParseError> {
+    let start_pos = pair.as_span().start();
+    let mut pairs = pair.into_inner();
+    let pair = pairs.next().unwrap();
+    assert_eq!(pair.as_rule(), Rule::and_expr);
+    let mut acc = and_expr_from_pair(pair)?;
+    while let Some(pair) = pairs.next() {
+        assert_eq!(pair.as_rule(), Rule::or);
+        let op_pos = span_to_pos_info(&pair.as_span());
+        let pair = pairs.next().unwrap();
+        assert_eq!(pair.as_rule(), Rule::and_expr);
+        let end_pos = pair.as_span().end();
+        acc = Expr::BinApp(
+            BinOp::Or(op_pos),
+            Box::new(acc),
+            Box::new(and_expr_from_pair(pair)?),
+            PosInfo {
+                start: start_pos,
+                end: end_pos,
+            },
+        )
+    }
+    Ok(acc)
+}
+
+fn and_expr_from_pair(pair: pest::iterators::Pair<Rule>) -> Result<Expr, ParseError> {
+    let start_pos = pair.as_span().start();
+    let mut pairs = pair.into_inner();
+    let pair = pairs.next().unwrap();
+    assert_eq!(pair.as_rule(), Rule::comp_expr);
+    let mut acc = comp_expr_from_pair(pair)?;
+    while let Some(pair) = pairs.next() {
+        assert_eq!(pair.as_rule(), Rule::and);
+        let op_pos = span_to_pos_info(&pair.as_span());
+        let pair = pairs.next().unwrap();
+        assert_eq!(pair.as_rule(), Rule::comp_expr);
+        let end_pos = pair.as_span().end();
+        acc = Expr::BinApp(
+            BinOp::And(op_pos),
+            Box::new(acc),
+            Box::new(comp_expr_from_pair(pair)?),
+            PosInfo {
+                start: start_pos,
+                end: end_pos,
+            },
+        )
+    }
+    Ok(acc)
+}
+
+fn comp_expr_from_pair(pair: pest::iterators::Pair<Rule>) -> Result<Expr, ParseError> {
+    let start_pos = pair.as_span().start();
+    let mut pairs = pair.into_inner();
+    let pair = pairs.next().unwrap();
+    assert_eq!(pair.as_rule(), Rule::additive_expr);
+    let mut acc = additive_expr_from_pair(pair)?;
+    while let Some(pair) = pairs.next() {
+        let op = match pair.as_rule() {
+            Rule::eq => BinOp::Eq,
+            Rule::neq => BinOp::Neq,
+            Rule::lt => BinOp::Lt,
+            Rule::leq => BinOp::Leq,
+            Rule::gt => BinOp::Gt,
+            Rule::geq => BinOp::Geq,
+            _ => unreachable!(),
+        };
+        let op_pos = span_to_pos_info(&pair.as_span());
+        let pair = pairs.next().unwrap();
+        assert_eq!(pair.as_rule(), Rule::additive_expr);
+        let end_pos = pair.as_span().end();
+        acc = Expr::BinApp(
+            op(op_pos),
+            Box::new(acc),
+            Box::new(additive_expr_from_pair(pair)?),
+            PosInfo {
+                start: start_pos,
+                end: end_pos,
+            },
+        )
+    }
+    Ok(acc)
 }
 
 fn additive_expr_from_pair(pair: pest::iterators::Pair<Rule>) -> Result<Expr, ParseError> {
@@ -223,9 +495,9 @@ fn additive_expr_from_pair(pair: pest::iterators::Pair<Rule>) -> Result<Expr, Pa
 fn multive_expr_from_pair(pair: pest::iterators::Pair<Rule>) -> Result<Expr, ParseError> {
     let mut pairs_iter = pair.into_inner();
     let head_pair = pairs_iter.next().unwrap();
-    assert_eq!(head_pair.as_rule(), Rule::primary_expr);
+    assert_eq!(head_pair.as_rule(), Rule::apply_expr);
 
-    let mut acc = primary_expr_from_pair(head_pair)?;
+    let mut acc = apply_expr_from_pair(head_pair)?;
     while let Some(pair) = pairs_iter.next() {
         let op = match pair.as_rule() {
             Rule::ast => BinOp::Mul,
@@ -233,8 +505,8 @@ fn multive_expr_from_pair(pair: pest::iterators::Pair<Rule>) -> Result<Expr, Par
             _ => unreachable!(),
         };
         let rhs_pair = pairs_iter.next().unwrap();
-        assert_eq!(rhs_pair.as_rule(), Rule::primary_expr);
-        let rhs = primary_expr_from_pair(rhs_pair)?;
+        assert_eq!(rhs_pair.as_rule(), Rule::apply_expr);
+        let rhs = apply_expr_from_pair(rhs_pair)?;
         let pos = PosInfo {
             start: acc.info().start,
             end: rhs.info().end,
@@ -246,6 +518,29 @@ fn multive_expr_from_pair(pair: pest::iterators::Pair<Rule>) -> Result<Expr, Par
             pos,
         )
     }
+    Ok(acc)
+}
+
+fn apply_expr_from_pair(pair: pest::iterators::Pair<Rule>) -> Result<Expr, ParseError> {
+    let start_pos = pair.as_span().start();
+    let mut pairs = pair.into_inner();
+    let acc_pair = pairs.next().unwrap();
+    let mut acc = primary_expr_from_pair(acc_pair)?;
+
+    while let Some(pair) = pairs.next() {
+        assert_eq!(pair.as_rule(), Rule::primary_expr);
+        let end_pos = pair.as_span().end();
+        let arg = primary_expr_from_pair(pair)?;
+        acc = Expr::FuncApp(
+            Box::new(acc),
+            Box::new(arg),
+            PosInfo {
+                start: start_pos,
+                end: end_pos,
+            },
+        );
+    }
+
     Ok(acc)
 }
 

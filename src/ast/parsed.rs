@@ -18,8 +18,37 @@ pub enum BaseType {
 }
 
 #[derive(Debug, PartialEq, Eq)]
+pub enum LogicalBinPred {
+    Eq(PosInfo),
+    Neq(PosInfo),
+    Lt(PosInfo),
+    Leq(PosInfo),
+    Gt(PosInfo),
+    Geq(PosInfo),
+}
+
+#[derive(Debug, PartialEq, Eq)]
 pub enum Formula {
     True(PosInfo),
+    False(PosInfo),
+    And(Box<Formula>, Box<Formula>, PosInfo),
+    Or(Box<Formula>, Box<Formula>, PosInfo),
+    BinApp(LogicalBinPred, LogicalExpr, LogicalExpr, PosInfo),
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum LogicalBinOp {
+    Add(PosInfo),
+    Mult(PosInfo),
+    Sub(PosInfo),
+    Div(PosInfo),
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum LogicalExpr {
+    Var(Ident),
+    Constant(Constant),
+    BinApp(LogicalBinOp, Box<LogicalExpr>, Box<LogicalExpr>, PosInfo),
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -48,6 +77,14 @@ pub struct Constant {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum BinOp {
+    Or(PosInfo),
+    And(PosInfo),
+    Eq(PosInfo),
+    Neq(PosInfo),
+    Lt(PosInfo),
+    Leq(PosInfo),
+    Gt(PosInfo),
+    Geq(PosInfo),
     Add(PosInfo),
     Sub(PosInfo),
     Mul(PosInfo),
@@ -61,6 +98,7 @@ pub enum Expr {
     BinApp(BinOp, Box<Expr>, Box<Expr>, PosInfo),
     Ifz(Box<Expr>, Box<Expr>, Box<Expr>, PosInfo),
     Let(Ident, Box<Expr>, Box<Expr>, PosInfo),
+    FuncApp(Box<Expr>, Box<Expr>, PosInfo),
 }
 
 impl Expr {
@@ -71,6 +109,7 @@ impl Expr {
             Expr::BinApp(_, _, _, info) => info,
             Expr::Ifz(_, _, _, info) => info,
             Expr::Let(_, _, _, info) => info,
+            Expr::FuncApp(_, _, info) => info,
         }
     }
 }
