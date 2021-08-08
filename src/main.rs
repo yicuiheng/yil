@@ -31,7 +31,6 @@ fn main() {
                 eprintln!("pos: {:?}", pos);
                 std::process::exit(-1);
             }
-            _ => unreachable!(),
         }
     });
 

@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct PosInfo {
     pub start: usize,
     pub end: usize,
@@ -17,7 +17,7 @@ pub enum BaseType {
     Int(PosInfo),
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum LogicalBinPred {
     Eq(PosInfo),
     Neq(PosInfo),
@@ -99,17 +99,4 @@ pub enum Expr {
     Ifz(Box<Expr>, Box<Expr>, Box<Expr>, PosInfo),
     Let(Ident, Box<Expr>, Box<Expr>, PosInfo),
     FuncApp(Box<Expr>, Box<Expr>, PosInfo),
-}
-
-impl Expr {
-    pub fn info(&self) -> &PosInfo {
-        match self {
-            Expr::Constant(c) => &c.pos,
-            Expr::Var(ident) => &ident.pos,
-            Expr::BinApp(_, _, _, info) => info,
-            Expr::Ifz(_, _, _, info) => info,
-            Expr::Let(_, _, _, info) => info,
-            Expr::FuncApp(_, _, info) => info,
-        }
-    }
 }
