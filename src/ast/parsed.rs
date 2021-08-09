@@ -17,45 +17,49 @@ pub enum BaseType {
     Int(PosInfo),
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum LogicalBinPred {
-    Eq(PosInfo),
-    Neq(PosInfo),
-    Lt(PosInfo),
-    Leq(PosInfo),
-    Gt(PosInfo),
-    Geq(PosInfo),
-}
+pub mod logic {
+    use super::*;
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum Formula {
-    True(PosInfo),
-    False(PosInfo),
-    And(Box<Formula>, Box<Formula>, PosInfo),
-    Or(Box<Formula>, Box<Formula>, PosInfo),
-    BinApp(LogicalBinPred, LogicalExpr, LogicalExpr, PosInfo),
-}
+    #[derive(Debug, PartialEq, Eq)]
+    pub enum BinPred {
+        Eq(PosInfo),
+        Neq(PosInfo),
+        Lt(PosInfo),
+        Leq(PosInfo),
+        Gt(PosInfo),
+        Geq(PosInfo),
+    }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum LogicalBinOp {
-    Add(PosInfo),
-    Mult(PosInfo),
-    Sub(PosInfo),
-    Div(PosInfo),
-}
+    #[derive(Debug, PartialEq, Eq)]
+    pub enum Formula {
+        True(PosInfo),
+        False(PosInfo),
+        And(Box<Formula>, Box<Formula>, PosInfo),
+        Or(Box<Formula>, Box<Formula>, PosInfo),
+        BinApp(BinPred, Expr, Expr, PosInfo),
+    }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum LogicalExpr {
-    Var(Ident),
-    Constant(Constant),
-    BinApp(LogicalBinOp, Box<LogicalExpr>, Box<LogicalExpr>, PosInfo),
+    #[derive(Debug, PartialEq, Eq)]
+    pub enum BinOp {
+        Add(PosInfo),
+        Mult(PosInfo),
+        Sub(PosInfo),
+        Div(PosInfo),
+    }
+
+    #[derive(Debug, PartialEq, Eq)]
+    pub enum Expr {
+        Var(Ident),
+        Constant(Constant),
+        BinApp(BinOp, Box<Expr>, Box<Expr>, PosInfo),
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct RefineType {
     pub param_name: Ident,
     pub base_type: BaseType,
-    pub formula: Formula,
+    pub formula: logic::Formula,
     pub pos: PosInfo,
 }
 
