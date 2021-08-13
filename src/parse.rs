@@ -1,4 +1,4 @@
-use crate::ast::parsed::*;
+use crate::ast::*;
 
 use pest::{
     iterators::{Pair, Pairs},
@@ -103,6 +103,30 @@ pub fn ident(str: &str) -> Result<Ident, ParseError> {
     Ok(Ident {
         name: ident_pair.as_str().to_string(),
         pos: span_to_pos_info(&ident_pair.as_span()),
+    })
+}
+
+pub fn program(str: &str) -> Result<Program, ParseError> {
+    let mut pairs = YilParser::parse(Rule::program, str).map_err(pest_err_to_parse_err)?;
+    let program_pair = pairs.nth(0).unwrap();
+    assert_eq!(program_pair.as_rule(), Rule::program);
+
+    program_from_pair(program_pair)
+}
+
+fn program_from_pair(pair: Pair<Rule>) -> Result<Program, ParseError> {
+    assert_eq!(pair.as_rule(), Rule::program);
+    let pos = span_to_pos_info(&pair.as_span());
+    let mut pairs = pair.into_inner();
+    let mut funcs = vec![];
+
+    while let Some(func_pair) = pairs.next() {
+        assert_eq!(func_pair.as_rule(), Rule::func);
+        funcs.push(func_from_pair(func_pair)?);
+    }
+    Ok(Program {
+        funcs: funcs,
+        pos: pos,
     })
 }
 

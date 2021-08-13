@@ -2,6 +2,7 @@
 extern crate pest_derive;
 
 mod ast;
+mod check_validity;
 mod parse;
 
 use clap::{AppSettings, Clap};
@@ -35,4 +36,6 @@ fn main() {
     });
 
     println!("parsed func: {:?}", parsed_func);
+    println!("-=-=-=-=-=-=-=-=-=-=-=-");
+    check_validity::check_validity(ast::logic::Formula::True(ast::PosInfo { start: 0, end: 0 }));
 }

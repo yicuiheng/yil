@@ -1,3 +1,5 @@
+program = { func+ }
+
 func = { kw_rec? ~ kw_func ~ ident ~ refine_type* ~ colon ~ refine_type ~ paren_expr }
 
 refine_type = { left_paren ~ ident ~ colon ~ base_type ~ bar ~ formula ~ right_paren }
