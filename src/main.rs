@@ -19,7 +19,7 @@ fn main() {
 
     let src = std::fs::read_to_string(opts.filename).expect("failed to read file..");
 
-    let parsed_func = parse::func(src.as_str()).unwrap_or_else(|e| {
+    let parsed_func = parse::program(src.as_str()).unwrap_or_else(|e| {
         use parse::ParseError::*;
         match e {
             UnexpectedToken {

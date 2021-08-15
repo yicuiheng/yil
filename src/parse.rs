@@ -130,6 +130,7 @@ fn program_from_pair(pair: Pair<Rule>) -> Result<Program, ParseError> {
     })
 }
 
+#[cfg(test)]
 pub fn func(str: &str) -> Result<Func, ParseError> {
     let mut pairs = YilParser::parse(Rule::func, str).map_err(pest_err_to_parse_err)?;
     let func_pair = pairs.nth(0).unwrap();

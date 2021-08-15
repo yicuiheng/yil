@@ -1,21 +1,34 @@
 use crate::ast::{logic::*, Constant};
 
+#[derive(Debug, PartialEq, Eq)]
 pub enum Status {
+    Valid,
+    Invalid,
+    Unknown,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Z3Status {
     Sat,
     Unsat,
-    Unknown,
+    Unknown
 }
 
 pub fn check_validity(formula: Formula) -> Status {
     use lexpr::Value;
-    let sexpr = formula_to_sexpr(formula);
-    println!("{}", sexpr);
-    let sexpr = vec![
-        Value::list(vec![Value::symbol("set-logic"), Value::symbol("QF_LIA")]),
-        Value::list(vec![Value::symbol("assert"), sexpr]),
-        Value::list(vec![Value::symbol("check-sat")]),
-    ];
-    run_z3(&sexpr)
+
+    let positive_sexpr = formula_to_sexpr(formula);
+    let negative_sexpr = Value::list(vec![Value::symbol("not"), positive_sexpr.clone()]);
+
+    if run_z3(negative_sexpr) == Z3Status::Unsat {
+        return Status::Valid;
+    }
+
+    if run_z3(positive_sexpr) == Z3Status::Sat {
+        return Status::Invalid;
+    }
+
+    Status::Unknown
 }
 
 fn formula_to_sexpr(formula: Formula) -> lexpr::Value {
@@ -94,18 +107,26 @@ fn constant_to_sexpr(constant: Constant) -> lexpr::Value {
     Value::from(lexpr::Number::from(constant.val))
 }
 
-fn run_z3(sexpr: &Vec<lexpr::Value>) -> Status {
-    use std::io::{self, Read, Write};
+fn run_z3(sexpr: lexpr::Value) -> Z3Status {
+    use std::io::Write;
     use std::process::Command;
-    use tempfile::NamedTempFile;
+    use lexpr::Value;
+
+    let sexpr = vec![
+        Value::list(vec![Value::symbol("set-logic"), Value::symbol("QF_LIA")]),
+        Value::list(vec![Value::symbol("assert"), sexpr]),
+        Value::list(vec![Value::symbol("check-sat")]),
+    ];
+
+    let query = sexpr.iter().map(lexpr::Value::to_string).collect::<Vec<_>>().join("\n");
 
     let mut temp = tempfile::Builder::new()
         .suffix(".smtlib2")
         .tempfile()
         .expect("cannot create temp file for z3 input");
-    for inner in sexpr {
-        writeln!(temp, "{}", inner);
-    }
+
+    writeln!(temp, "{}", query);
+
     let z3_input_filename = temp.path().to_str().unwrap().to_string();
 
     let output = Command::new("z3")
@@ -113,10 +134,59 @@ fn run_z3(sexpr: &Vec<lexpr::Value>) -> Status {
         .output()
         .expect("failed to run z3");
 
-    println!("status: {}", output.status);
-    println!("[stdout]");
-    println!("{}", std::str::from_utf8(output.stdout.as_slice()).unwrap());
-    println!("[stderr]");
-    println!("{}", std::str::from_utf8(output.stderr.as_slice()).unwrap());
-    Status::Sat
+    println!("{}", output.status.code().unwrap());
+
+    if output.status.code().unwrap() != 0 {
+        eprintln!("[UNEXPECTED ERROR] z3 cannot recognized the query generated from yil type system..");
+        eprintln!("please contact me, yicuiheng <yicuiheng@gmail.com>");
+        eprintln!("query passed to z3: ");
+        eprintln!("```");
+        eprintln!("{}", query);
+        eprintln!("```");
+        eprintln!("error: ");
+        eprintln!("```");
+        eprintln!("{}", std::str::from_utf8(output.stderr.as_slice()).unwrap());
+        eprintln!("```");
+        return Z3Status::Unknown;
+    }
+
+    if !output.stderr.is_empty() {
+        eprintln!("[UNEXPECTED WARNING] warning occured in z3..");
+        eprintln!("please contact me, yicuiheng <yicuiheng@gmail.com>");
+        eprintln!("query passed to z3: ");
+        eprintln!("```");
+        eprintln!("{}", query);
+        eprintln!("``");
+        eprintln!("warning: ");
+        eprintln!("```");
+        eprintln!("{}", std::str::from_utf8(output.stderr.as_slice()).unwrap());
+        eprintln!("```");
+        return Z3Status::Unknown;
+    }
+
+    match std::str::from_utf8(output.stdout.as_slice()).unwrap() {
+        "sat\n" => Z3Status::Sat,
+        "unsat\n" => Z3Status::Unsat,
+        _ => {
+            eprintln!("[UNEXPECTED ERROR] z3 cannot recognized the query generated from yil type system..");
+            eprintln!("please contact me, yicuiheng <yicuiheng@gmail.com>");
+            eprintln!("query passed to z3: ");
+            eprintln!("```");
+            eprintln!("{}", query);
+            eprintln!("``");
+
+            eprintln!("output: ");
+            eprintln!("```");
+            eprintln!("{}", std::str::from_utf8(output.stdout.as_slice()).unwrap());
+            eprintln!("```");
+
+
+            eprintln!("warning: ");
+            eprintln!("```");
+            eprintln!("{}", std::str::from_utf8(output.stderr.as_slice()).unwrap());
+            eprintln!("```");
+
+            return Z3Status::Unknown;
+        }
+    }
 }
