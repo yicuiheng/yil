@@ -22,7 +22,10 @@ comp_expr = { additive_expr ~ ((eq | neq | lt | leq | gt | geq) ~ additive_expr)
 additive_expr = { multive_expr ~ ((plus | minus) ~ multive_expr)* }
 multive_expr = { apply_expr ~ ((ast | slash) ~ apply_expr)* }
 
-apply_expr = { primary_expr ~ primary_expr* }
+apply_expr = {
+    primary_expr |
+    (ident ~ left_paren ~ right_paren) |
+    (ident ~ left_paren ~ expr ~ (comma ~ expr)* ~ right_paren) }
 
 primary_expr = {
     ifz_expr |
@@ -56,6 +59,7 @@ leq = { "<=" }
 gt = { ">" }
 geq = { ">=" }
 colon = { ":" }
+comma = { "," }
 bar = { "|" }
 
 

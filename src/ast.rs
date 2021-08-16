@@ -1,18 +1,48 @@
 use std::fmt::Debug;
+use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct PosInfo {
     pub start: usize,
     pub end: usize,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+impl PosInfo {
+    pub fn dummy() -> Self {
+        Self {
+            start: 0,
+            end: 0
+        }
+    }
+}
+
+#[derive(Debug, Clone, Hash)]
 pub struct Ident {
     pub name: String,
     pub pos: PosInfo,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+impl PartialEq for Ident {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+    }
+}
+
+impl Eq for Ident {}
+
+static FRESH_IDENT_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+impl Ident {
+    pub fn  fresh() -> Self {
+        Self {
+            name: format!("<fresh-{}>", FRESH_IDENT_COUNT.fetch_add(1, SeqCst)),
+            pos: PosInfo::dummy()
+        }
+    }
+}
+
+
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum BaseType {
     Int(PosInfo),
 }
@@ -20,7 +50,7 @@ pub enum BaseType {
 pub mod logic {
     use super::*;
 
-    #[derive(Debug, PartialEq, Eq)]
+    #[derive(Debug, PartialEq, Eq, Clone)]
     pub enum BinPred {
         Eq(PosInfo),
         Neq(PosInfo),
@@ -30,7 +60,7 @@ pub mod logic {
         Geq(PosInfo),
     }
 
-    #[derive(Debug, PartialEq, Eq)]
+    #[derive(Debug, PartialEq, Eq, Clone)]
     pub enum Formula {
         True(PosInfo),
         False(PosInfo),
@@ -40,7 +70,13 @@ pub mod logic {
         BinApp(BinPred, Expr, Expr, PosInfo),
     }
 
-    #[derive(Debug, PartialEq, Eq)]
+    impl Formula {
+        pub fn subst(self, var: &Ident, e: Expr) -> Formula {
+            todo!()
+        }
+    }
+
+    #[derive(Debug, PartialEq, Eq, Clone)]
     pub enum BinOp {
         Add(PosInfo),
         Mult(PosInfo),
@@ -48,11 +84,17 @@ pub mod logic {
         Div(PosInfo),
     }
 
-    #[derive(Debug, PartialEq, Eq)]
+    #[derive(Debug, PartialEq, Eq, Clone)]
     pub enum Expr {
         Var(Ident),
         Constant(Constant),
         BinApp(BinOp, Box<Expr>, Box<Expr>, PosInfo),
+    }
+
+    impl Expr {
+        pub fn subst(self, var: Ident, e: Expr) -> Self {
+            todo!()
+        }
     }
 }
 
@@ -62,7 +104,7 @@ pub struct Program {
     pub pos: PosInfo,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct RefineType {
     pub param_name: Ident,
     pub base_type: BaseType,
@@ -80,7 +122,7 @@ pub struct Func {
     pub pos: PosInfo,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Constant {
     pub val: i64,
     pub pos: PosInfo,
@@ -109,5 +151,5 @@ pub enum Expr {
     BinApp(BinOp, Box<Expr>, Box<Expr>, PosInfo),
     Ifz(Box<Expr>, Box<Expr>, Box<Expr>, PosInfo),
     Let(Ident, Box<Expr>, Box<Expr>, PosInfo),
-    FuncApp(Box<Expr>, Box<Expr>, PosInfo),
+    FuncApp(Ident, Vec<Expr>, PosInfo),
 }

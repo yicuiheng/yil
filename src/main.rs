@@ -4,6 +4,7 @@ extern crate pest_derive;
 mod ast;
 mod check_validity;
 mod parse;
+mod typecheck;
 
 use clap::{AppSettings, Clap};
 
@@ -19,7 +20,7 @@ fn main() {
 
     let src = std::fs::read_to_string(opts.filename).expect("failed to read file..");
 
-    let parsed_func = parse::program(src.as_str()).unwrap_or_else(|e| {
+    let program = parse::program(src.as_str()).unwrap_or_else(|e| {
         use parse::ParseError::*;
         match e {
             UnexpectedToken {
@@ -35,7 +36,8 @@ fn main() {
         }
     });
 
-    println!("parsed func: {:?}", parsed_func);
-    println!("-=-=-=-=-=-=-=-=-=-=-=-");
-    check_validity::check_validity(ast::logic::Formula::True(ast::PosInfo { start: 0, end: 0 }));
+    if let Err(typecheck::TypeError::Hoge(err)) = typecheck::check_program(program) {
+        eprintln!("{}", err)
+    }
+
 }

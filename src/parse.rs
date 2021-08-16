@@ -454,26 +454,36 @@ fn multive_expr_from_pair(pair: Pair<Rule>) -> Result<Expr, ParseError> {
 
 fn apply_expr_from_pair(pair: Pair<Rule>) -> Result<Expr, ParseError> {
     assert_eq!(pair.as_rule(), Rule::apply_expr);
-    let start_pos = pair.as_span().start();
+    let pos = span_to_pos_info(&pair.as_span());
     let mut pairs = pair.into_inner();
-    let acc_pair = pairs.next().unwrap();
-    let mut acc = primary_expr_from_pair(acc_pair)?;
+    let head_pair = pairs.next().unwrap();
 
-    while let Some(pair) = pairs.next() {
-        assert_eq!(pair.as_rule(), Rule::primary_expr);
-        let end_pos = pair.as_span().end();
-        let arg = primary_expr_from_pair(pair)?;
-        acc = Expr::FuncApp(
-            Box::new(acc),
-            Box::new(arg),
-            PosInfo {
-                start: start_pos,
-                end: end_pos,
-            },
-        );
+    if head_pair.as_rule() == Rule::primary_expr {
+        primary_expr_from_pair(head_pair)
+    } else if head_pair.as_rule() == Rule::ident {
+        let func_name = ident_from_pair(head_pair)?;
+        assert_eq!(pairs.next().unwrap().as_rule(), Rule::left_paren);
+        let mut args = vec![];
+
+        let pair = pairs.next().unwrap();
+        if pair.as_rule() != Rule::right_paren {
+            args.push(expr_from_pair(pair)?);
+
+            loop {
+                let pair = pairs.next().unwrap();
+                match pair.as_rule() {
+                    Rule::right_paren => break,
+                    Rule::comma =>
+                        args.push(expr_from_pair(pairs.next().unwrap())?),
+                    _ => unreachable!(),
+                }
+            }
+        }
+
+        Ok(Expr::FuncApp(func_name, args, pos))
+    } else {
+        unreachable!()
     }
-
-    Ok(acc)
 }
 
 fn primary_expr_from_pair(pair: Pair<Rule>) -> Result<Expr, ParseError> {
