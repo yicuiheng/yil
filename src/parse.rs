@@ -2,8 +2,10 @@ use crate::ast::*;
 
 use pest::{
     iterators::{Pair, Pairs},
+    error,
     Parser,
 };
+use itertools::{Itertools, Position};
 use std::collections::HashMap;
 
 #[derive(Parser)]
@@ -12,11 +14,63 @@ struct YilParser;
 
 #[derive(Debug)]
 pub enum ParseError {
-    UnexpectedToken {
-        expected: Vec<&'static str>,
-        unexpected: Vec<&'static str>,
-        pos: usize,
-    },
+    Pest(error::Error<Rule>),
+}
+
+impl From<error::Error<Rule>> for ParseError {
+    fn from(item: error::Error<Rule>) -> Self {
+        ParseError::Pest(item)
+    }
+}
+
+fn line_of<'a>(src: &'a str, mut line_num: usize) -> String {
+    let mut line = String::new();
+    for c in src.chars() {
+        if line_num == 0 && c == '\n' {
+            return line;
+        }
+        if line_num == 0 {
+            line.push(c);
+        }
+        if c == '\n' {
+            line_num -= 1;
+        }
+    }
+    unreachable!()
+}
+
+pub fn print_error(e: ParseError, src: &str) {
+    match e {
+        ParseError::Pest(error::Error {
+            variant: error::ErrorVariant::ParsingError {positives, ..},
+            line_col,
+            ..
+        }) => {
+            let (line, col) = match line_col {
+                error::LineColLocation::Pos((line, col)) => (line, col),
+                error::LineColLocation::Span((line, col), _) => (line, col),
+            };
+            let mut msg = format!("{}\n", line_of(src, line-1));
+            msg.push_str(&format!("{}^^^\n", std::iter::repeat(' ').take(col).collect::<String>()));
+            msg.push_str(&format!("unexpected token at line {}\n expeted : ", line));
+            for e in positives.iter().with_position() {
+                match e {
+                    Position::First(p) | Position::Middle(p) => {
+                        msg.push_str(rule_to_str(p));
+                    },
+                    Position::Last(p) => {
+                        msg.push_str(rule_to_str(p));
+                    },
+                    Position::Only(p) => {
+                        msg.push_str(rule_to_str(p));
+                    }
+                }
+            }
+            eprintln!("{}", msg);
+            std::process::exit(-1);
+        },
+        _ => todo!(),
+    }
 }
 
 fn span_to_pos_info(span: &pest::Span) -> PosInfo {
@@ -26,7 +80,7 @@ fn span_to_pos_info(span: &pest::Span) -> PosInfo {
     }
 }
 
-fn rule_to_str(rule: Rule) -> &'static str {
+fn rule_to_str(rule: &Rule) -> &'static str {
     match rule {
         Rule::func => "function",
         Rule::refine_type => "refinement type",
@@ -73,32 +127,9 @@ fn rule_to_str(rule: Rule) -> &'static str {
     }
 }
 
-fn pest_err_to_parse_err(e: pest::error::Error<Rule>) -> ParseError {
-    use pest::error::*;
-    let pos = match e.location {
-        InputLocation::Pos(pos) => pos,
-        InputLocation::Span((pos, _)) => pos,
-    };
-    match e.variant {
-        pest::error::ErrorVariant::ParsingError {
-            positives,
-            negatives,
-        } => {
-            let expected = positives.into_iter().map(rule_to_str).collect();
-            let unexpected = negatives.into_iter().map(rule_to_str).collect();
-            ParseError::UnexpectedToken {
-                expected,
-                unexpected,
-                pos,
-            }
-        }
-        _ => unreachable!(),
-    }
-}
-
 #[cfg(test)]
 pub fn ident(str: &str) -> Result<Ident, ParseError> {
-    let mut pairs = YilParser::parse(Rule::ident, str).map_err(pest_err_to_parse_err)?;
+    let mut pairs = YilParser::parse(Rule::ident, str)?;
     let ident_pair = pairs.nth(0).unwrap();
     Ok(Ident {
         name: ident_pair.as_str().to_string(),
@@ -107,7 +138,7 @@ pub fn ident(str: &str) -> Result<Ident, ParseError> {
 }
 
 pub fn program(str: &str) -> Result<Program, ParseError> {
-    let mut pairs = YilParser::parse(Rule::program, str).map_err(pest_err_to_parse_err)?;
+    let mut pairs = YilParser::parse(Rule::program, str)?;
     let program_pair = pairs.nth(0).unwrap();
     assert_eq!(program_pair.as_rule(), Rule::program);
 
@@ -132,7 +163,7 @@ fn program_from_pair(pair: Pair<Rule>) -> Result<Program, ParseError> {
 
 #[cfg(test)]
 pub fn func(str: &str) -> Result<Func, ParseError> {
-    let mut pairs = YilParser::parse(Rule::func, str).map_err(pest_err_to_parse_err)?;
+    let mut pairs = YilParser::parse(Rule::func, str)?;
     let func_pair = pairs.nth(0).unwrap();
     assert_eq!(func_pair.as_rule(), Rule::func);
 
@@ -158,13 +189,13 @@ fn func_from_pair(pair: Pair<Rule>) -> Result<Func, ParseError> {
     let mut params = vec![];
     let mut pair = pairs.next().unwrap();
     while pair.as_rule() == Rule::refine_type {
-        params.push(refine_type_from_pair(pair)?);
+        params.push(type_from_pair(pair)?);
         pair = pairs.next().unwrap();
     }
 
     assert_eq!(pair.as_rule(), Rule::colon);
 
-    let ret = refine_type_from_pair(pairs.next().unwrap())?;
+    let ret = type_from_pair(pairs.next().unwrap())?;
     let body = paren_expr_from_pair(pairs.next().unwrap())?;
 
     Ok(Func {
@@ -331,7 +362,7 @@ fn primary_logical_expr_from_pair(pair: Pair<Rule>) -> Result<logic::Expr, Parse
     }
 }
 
-fn refine_type_from_pair(pair: Pair<Rule>) -> Result<RefineType, ParseError> {
+fn type_from_pair(pair: Pair<Rule>) -> Result<Type, ParseError> {
     assert_eq!(pair.as_rule(), Rule::refine_type);
     let pos = span_to_pos_info(&pair.as_span());
     let mut pairs = pair.into_inner();
@@ -343,17 +374,17 @@ fn refine_type_from_pair(pair: Pair<Rule>) -> Result<RefineType, ParseError> {
     assert_eq!(pairs.next().unwrap().as_rule(), Rule::bar);
     let formula = formula_from_pair(pairs.next().unwrap())?;
     assert_eq!(pairs.next().unwrap().as_rule(), Rule::right_paren);
-    Ok(RefineType {
+    Ok(Type::NonFuncType(NonFuncType {
         param_name,
         base_type,
         formula,
         pos,
-    })
+    }))
 }
 
 #[cfg(test)]
 pub fn expr(str: &str) -> Result<Expr, ParseError> {
-    let mut pairs = YilParser::parse(Rule::expr, str).map_err(pest_err_to_parse_err)?;
+    let mut pairs = YilParser::parse(Rule::expr, str)?;
     let expr_pair = pairs.nth(0).unwrap();
     assert_eq!(expr_pair.as_rule(), Rule::expr);
 
@@ -460,8 +491,8 @@ fn apply_expr_from_pair(pair: Pair<Rule>) -> Result<Expr, ParseError> {
 
     if head_pair.as_rule() == Rule::primary_expr {
         primary_expr_from_pair(head_pair)
-    } else if head_pair.as_rule() == Rule::ident {
-        let func_name = ident_from_pair(head_pair)?;
+    } else if head_pair.as_rule() == Rule::at {
+        let func_name = ident_from_pair(pairs.next().unwrap())?;
         assert_eq!(pairs.next().unwrap().as_rule(), Rule::left_paren);
         let mut args = vec![];
 
@@ -727,7 +758,7 @@ fn test() {
                 name: "hoge".to_string(),
                 pos: PosInfo { start: 9, end: 13 }
             },
-            params: vec![RefineType {
+            params: vec![Type::NonFuncType(NonFuncType {
                 param_name: Ident {
                     name: "x".to_string(),
                     pos: PosInfo { start: 15, end: 16 }
@@ -735,8 +766,8 @@ fn test() {
                 base_type: BaseType::Int(PosInfo { start: 18, end: 21 }),
                 formula: logic::Formula::True(PosInfo { start: 24, end: 28 }),
                 pos: PosInfo { start: 14, end: 29 }
-            }],
-            ret: RefineType {
+            })],
+            ret: Type::NonFuncType(NonFuncType {
                 param_name: Ident {
                     name: "y".to_string(),
                     pos: PosInfo { start: 32, end: 33 }
@@ -744,7 +775,7 @@ fn test() {
                 base_type: BaseType::Int(PosInfo { start: 35, end: 38 }),
                 formula: logic::Formula::True(PosInfo { start: 41, end: 45 }),
                 pos: PosInfo { start: 31, end: 46 }
-            },
+            }),
             is_rec: true,
             body: Expr::Var(Ident {
                 name: "x".to_string(),

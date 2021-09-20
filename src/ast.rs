@@ -41,7 +41,6 @@ impl Ident {
     }
 }
 
-
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum BaseType {
     Int(PosInfo),
@@ -71,7 +70,7 @@ pub mod logic {
     }
 
     impl Formula {
-        pub fn subst(self, var: &Ident, e: Expr) -> Formula {
+        pub fn subst(self, _var: &Ident, _e: Expr) -> Formula {
             todo!()
         }
     }
@@ -92,7 +91,7 @@ pub mod logic {
     }
 
     impl Expr {
-        pub fn subst(self, var: Ident, e: Expr) -> Self {
+        pub fn subst(self, _var: Ident, _e: Expr) -> Self {
             todo!()
         }
     }
@@ -105,18 +104,31 @@ pub struct Program {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct RefineType {
+pub struct FuncType {
+    pub params: Vec<Type>,
+    pub ret: Box<Type> ,
+    pub pos: PosInfo
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct NonFuncType {
     pub param_name: Ident,
     pub base_type: BaseType,
     pub formula: logic::Formula,
     pub pos: PosInfo,
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum Type {
+    FuncType(FuncType),
+    NonFuncType(NonFuncType)
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct Func {
     pub name: Ident,
-    pub params: Vec<RefineType>,
-    pub ret: RefineType,
+    pub params: Vec<Type>,
+    pub ret: Type,
     pub is_rec: bool,
     pub body: Expr,
     pub pos: PosInfo,

@@ -24,8 +24,8 @@ multive_expr = { apply_expr ~ ((ast | slash) ~ apply_expr)* }
 
 apply_expr = {
     primary_expr |
-    (ident ~ left_paren ~ right_paren) |
-    (ident ~ left_paren ~ expr ~ (comma ~ expr)* ~ right_paren) }
+    (at ~ ident ~ left_paren ~ right_paren) |
+    (at ~ ident ~ left_paren ~ expr ~ (comma ~ expr)* ~ right_paren) }
 
 primary_expr = {
     ifz_expr |
@@ -61,6 +61,7 @@ geq = { ">=" }
 colon = { ":" }
 comma = { "," }
 bar = { "|" }
+at = { "@" }
 
 
 kw_ifz = { "ifz" }

@@ -1,5 +1,5 @@
 rec func sum (n:int | n = 0) : (m:int | 2 * m = n * (n+1)) (
   ifz n then 0
-  else n + (sum(n-1))
+  else n + @sum(n - 1)
 )
 

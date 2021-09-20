@@ -2,7 +2,6 @@
 extern crate pest_derive;
 
 mod ast;
-mod check_validity;
 mod parse;
 mod typecheck;
 
@@ -21,19 +20,8 @@ fn main() {
     let src = std::fs::read_to_string(opts.filename).expect("failed to read file..");
 
     let program = parse::program(src.as_str()).unwrap_or_else(|e| {
-        use parse::ParseError::*;
-        match e {
-            UnexpectedToken {
-                expected,
-                unexpected,
-                pos,
-            } => {
-                eprintln!("positive: {:?}", expected);
-                eprintln!("negative: {:?}", unexpected);
-                eprintln!("pos: {:?}", pos);
-                std::process::exit(-1);
-            }
-        }
+        parse::print_error(e, src.as_str());
+        std::process::exit(-1);
     });
 
     if let Err(typecheck::TypeError::Hoge(err)) = typecheck::check_program(program) {
