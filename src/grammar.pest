@@ -13,7 +13,11 @@ primary_logical_expr = { ident | constant | left_paren ~ additive_logical_expr ~
 
 base_type = { kw_int }
 
-expr = { or_expr }
+expr = {
+    let_expr |
+    or_expr }
+
+let_expr = { kw_let ~ ident ~ equal ~ expr ~ kw_in ~ expr }
 
 or_expr = { and_expr ~ (or ~ and_expr)* }
 and_expr = { comp_expr ~ (and ~ comp_expr)* }
@@ -23,20 +27,18 @@ additive_expr = { multive_expr ~ ((plus | minus) ~ multive_expr)* }
 multive_expr = { apply_expr ~ ((ast | slash) ~ apply_expr)* }
 
 apply_expr = {
-    primary_expr |
-    (at ~ ident ~ left_paren ~ right_paren) |
-    (at ~ ident ~ left_paren ~ expr ~ (comma ~ expr)* ~ right_paren) }
+    (ident ~ left_paren ~ right_paren) |
+    (ident ~ left_paren ~ expr ~ (comma ~ expr)* ~ right_paren) |
+    primary_expr }
 
 primary_expr = {
     ifz_expr |
-    let_expr |
     constant |
     variable |
     paren_expr
 }
 
-ifz_expr = { kw_ifz ~ expr ~ kw_then ~ expr ~ kw_else ~ expr }
-let_expr = { kw_let ~ ident ~ equal ~ expr ~ kw_in ~ expr }
+ifz_expr = { kw_ifz ~ expr ~ left_brace ~ expr ~ right_brace ~ kw_else ~ left_brace ~ expr ~ right_brace }
 constant = @{ digit+ }
 variable = { ident }
 paren_expr = { left_paren ~ expr ~ right_paren }
@@ -65,7 +67,6 @@ at = { "@" }
 
 
 kw_ifz = { "ifz" }
-kw_then = { "then" }
 kw_else = { "else" }
 kw_let = { "let" }
 kw_in = { "in" }
@@ -75,7 +76,7 @@ kw_int = { "int" }
 kw_true = { "true" }
 kw_false = { "false" }
 
-keyword = { kw_ifz | kw_then | kw_else | kw_let | kw_in | kw_rec | kw_func | kw_int | kw_true | kw_false }
+keyword = { kw_ifz | kw_else | kw_let | kw_in | kw_rec | kw_func | kw_int | kw_true | kw_false }
 
 alpha = {'a'..'z' | 'A'..'Z'}
 digit = {'0'..'9'}

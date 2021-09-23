@@ -113,7 +113,6 @@ fn rule_to_str(rule: &Rule) -> &'static str {
         Rule::colon => "':'",
         Rule::bar => "'|'",
         Rule::kw_ifz => "'ifz'",
-        Rule::kw_then => "'then'",
         Rule::kw_else => "'else'",
         Rule::kw_let => "'let'",
         Rule::kw_in => "'in'",
@@ -393,11 +392,40 @@ pub fn expr(str: &str) -> Result<Expr, ParseError> {
 
 fn expr_from_pair(pair: Pair<Rule>) -> Result<Expr, ParseError> {
     assert_eq!(pair.as_rule(), Rule::expr);
-    let mut pairs = pair.into_inner();
-    let or_expr_pair = pairs.next().unwrap();
-    assert_eq!(or_expr_pair.as_rule(), Rule::or_expr);
-    let head_or_expr = or_expr_from_pair(or_expr_pair)?;
-    Ok(head_or_expr)
+    let mut pairs_iter = pair.into_inner();
+    let pair = pairs_iter.next().unwrap();
+
+    match pair.as_rule() {
+        Rule::let_expr => let_expr_from_pair(pair),
+        Rule::or_expr => or_expr_from_pair(pair),
+        _ => unreachable!()
+    }
+}
+
+fn let_expr_from_pair(pair: Pair<Rule>) -> Result<Expr, ParseError> {
+    assert_eq!(pair.as_rule(), Rule::let_expr);
+    let pos_info = span_to_pos_info(&pair.as_span());
+    let mut pairs_iter = pair.into_inner();
+
+    assert_eq!(pairs_iter.next().unwrap().as_rule(), Rule::kw_let);
+
+    let ident_pair = pairs_iter.next().unwrap();
+    assert_eq!(ident_pair.as_rule(), Rule::ident);
+    let ident = ident_from_pair(ident_pair)?;
+
+    assert_eq!(pairs_iter.next().unwrap().as_rule(), Rule::equal);
+
+    let expr1_pair = pairs_iter.next().unwrap();
+    assert_eq!(expr1_pair.as_rule(), Rule::expr);
+    let expr1 = expr_from_pair(expr1_pair)?;
+
+    assert_eq!(pairs_iter.next().unwrap().as_rule(), Rule::kw_in);
+
+    let expr2_pair = pairs_iter.next().unwrap();
+    assert_eq!(expr2_pair.as_rule(), Rule::expr);
+    let expr2 = expr_from_pair(expr2_pair)?;
+
+    Ok(Expr::Let(ident, Box::new(expr1), Box::new(expr2), pos_info))
 }
 
 fn or_expr_from_pair(pair: Pair<Rule>) -> Result<Expr, ParseError> {
@@ -487,12 +515,13 @@ fn apply_expr_from_pair(pair: Pair<Rule>) -> Result<Expr, ParseError> {
     assert_eq!(pair.as_rule(), Rule::apply_expr);
     let pos = span_to_pos_info(&pair.as_span());
     let mut pairs = pair.into_inner();
+
     let head_pair = pairs.next().unwrap();
 
     if head_pair.as_rule() == Rule::primary_expr {
         primary_expr_from_pair(head_pair)
-    } else if head_pair.as_rule() == Rule::at {
-        let func_name = ident_from_pair(pairs.next().unwrap())?;
+    } else if head_pair.as_rule() == Rule::ident {
+        let func_name = ident_from_pair(head_pair)?;
         assert_eq!(pairs.next().unwrap().as_rule(), Rule::left_paren);
         let mut args = vec![];
 
@@ -524,7 +553,6 @@ fn primary_expr_from_pair(pair: Pair<Rule>) -> Result<Expr, ParseError> {
 
     match pair.as_rule() {
         Rule::ifz_expr => ifz_expr_from_pair(pair),
-        Rule::let_expr => let_expr_from_pair(pair),
         Rule::constant => constant_from_pair(pair).map(|c| Expr::Constant(c)),
         Rule::variable => variable_from_pair(pair),
         Rule::paren_expr => paren_expr_from_pair(pair),
@@ -543,17 +571,21 @@ fn ifz_expr_from_pair(pair: Pair<Rule>) -> Result<Expr, ParseError> {
     assert_eq!(cond_pair.as_rule(), Rule::expr);
     let cond = expr_from_pair(cond_pair)?;
 
-    assert_eq!(pairs_iter.next().unwrap().as_rule(), Rule::kw_then);
+    assert_eq!(pairs_iter.next().unwrap().as_rule(), Rule::left_brace);
 
     let expr1_pair = pairs_iter.next().unwrap();
     assert_eq!(expr1_pair.as_rule(), Rule::expr);
     let expr1 = expr_from_pair(expr1_pair)?;
 
+    assert_eq!(pairs_iter.next().unwrap().as_rule(), Rule::right_brace);
     assert_eq!(pairs_iter.next().unwrap().as_rule(), Rule::kw_else);
+    assert_eq!(pairs_iter.next().unwrap().as_rule(), Rule::left_brace);
 
     let expr2_pair = pairs_iter.next().unwrap();
     assert_eq!(expr2_pair.as_rule(), Rule::expr);
     let expr2 = expr_from_pair(expr2_pair)?;
+
+    assert_eq!(pairs_iter.next().unwrap().as_rule(), Rule::right_brace);
 
     Ok(Expr::Ifz(
         Box::new(cond),
@@ -561,32 +593,6 @@ fn ifz_expr_from_pair(pair: Pair<Rule>) -> Result<Expr, ParseError> {
         Box::new(expr2),
         pos_info,
     ))
-}
-
-fn let_expr_from_pair(pair: Pair<Rule>) -> Result<Expr, ParseError> {
-    assert_eq!(pair.as_rule(), Rule::let_expr);
-    let pos_info = span_to_pos_info(&pair.as_span());
-    let mut pairs_iter = pair.into_inner();
-
-    assert_eq!(pairs_iter.next().unwrap().as_rule(), Rule::kw_let);
-
-    let ident_pair = pairs_iter.next().unwrap();
-    assert_eq!(ident_pair.as_rule(), Rule::ident);
-    let ident = ident_from_pair(ident_pair)?;
-
-    assert_eq!(pairs_iter.next().unwrap().as_rule(), Rule::equal);
-
-    let expr1_pair = pairs_iter.next().unwrap();
-    assert_eq!(expr1_pair.as_rule(), Rule::expr);
-    let expr1 = expr_from_pair(expr1_pair)?;
-
-    assert_eq!(pairs_iter.next().unwrap().as_rule(), Rule::kw_in);
-
-    let expr2_pair = pairs_iter.next().unwrap();
-    assert_eq!(expr2_pair.as_rule(), Rule::expr);
-    let expr2 = expr_from_pair(expr2_pair)?;
-
-    Ok(Expr::Let(ident, Box::new(expr1), Box::new(expr2), pos_info))
 }
 
 fn constant_from_pair(pair: Pair<Rule>) -> Result<Constant, ParseError> {
@@ -668,7 +674,7 @@ fn test() {
                     val: 2,
                     pos: PosInfo { start: 5, end: 6 }
                 })),
-                PosInfo { start: 1, end: 7 }
+                PosInfo { start: 1, end: 6 }
             )),
             Box::new(Expr::Constant(Constant {
                 val: 3,
@@ -679,7 +685,7 @@ fn test() {
     );
 
     assert_eq!(
-        expr("1 + ifz a then 41 else 90 + 9").unwrap(),
+        expr("1 + ifz a { 41 } else { 90 + 9 }").unwrap(),
         Expr::BinApp(
             BinOp::Add(PosInfo { start: 2, end: 3 }),
             Box::new(Expr::Constant(Constant {
@@ -693,23 +699,23 @@ fn test() {
                 })),
                 Box::new(Expr::Constant(Constant {
                     val: 41,
-                    pos: PosInfo { start: 15, end: 17 }
+                    pos: PosInfo { start: 12, end: 14 }
                 })),
                 Box::new(Expr::BinApp(
-                    BinOp::Add(PosInfo { start: 26, end: 27 }),
+                    BinOp::Add(PosInfo { start: 27, end: 28 }),
                     Box::new(Expr::Constant(Constant {
                         val: 90,
-                        pos: PosInfo { start: 23, end: 25 }
+                        pos: PosInfo { start: 24, end: 26 }
                     })),
                     Box::new(Expr::Constant(Constant {
                         val: 9,
-                        pos: PosInfo { start: 28, end: 29 }
+                        pos: PosInfo { start: 29, end: 30 }
                     })),
-                    PosInfo { start: 23, end: 29 }
+                    PosInfo { start: 24, end: 31 }
                 )),
-                PosInfo { start: 4, end: 29 }
+                PosInfo { start: 4, end: 32 }
             )),
-            PosInfo { start: 0, end: 29 }
+            PosInfo { start: 0, end: 32 }
         )
     );
 
