@@ -11,7 +11,7 @@ pub enum Status {
 pub enum Z3Status {
     Sat,
     Unsat,
-    Unknown
+    Unknown,
 }
 
 pub fn check_validity(formula: Formula) -> Status {
@@ -108,9 +108,9 @@ fn constant_to_sexpr(constant: Constant) -> lexpr::Value {
 }
 
 fn run_z3(sexpr: lexpr::Value) -> Z3Status {
+    use lexpr::Value;
     use std::io::Write;
     use std::process::Command;
-    use lexpr::Value;
 
     let sexpr = vec![
         Value::list(vec![Value::symbol("set-logic"), Value::symbol("QF_LIA")]),
@@ -118,7 +118,11 @@ fn run_z3(sexpr: lexpr::Value) -> Z3Status {
         Value::list(vec![Value::symbol("check-sat")]),
     ];
 
-    let query = sexpr.iter().map(lexpr::Value::to_string).collect::<Vec<_>>().join("\n");
+    let query = sexpr
+        .iter()
+        .map(lexpr::Value::to_string)
+        .collect::<Vec<_>>()
+        .join("\n");
 
     let mut temp = tempfile::Builder::new()
         .suffix(".smtlib2")
@@ -137,7 +141,9 @@ fn run_z3(sexpr: lexpr::Value) -> Z3Status {
     println!("{}", output.status.code().unwrap());
 
     if output.status.code().unwrap() != 0 {
-        eprintln!("[UNEXPECTED ERROR] z3 cannot recognized the query generated from yil type system..");
+        eprintln!(
+            "[UNEXPECTED ERROR] z3 cannot recognized the query generated from yil type system.."
+        );
         eprintln!("please contact me, yicuiheng <yicuiheng@gmail.com>");
         eprintln!("query passed to z3: ");
         eprintln!("```");
@@ -179,7 +185,6 @@ fn run_z3(sexpr: lexpr::Value) -> Z3Status {
             eprintln!("```");
             eprintln!("{}", std::str::from_utf8(output.stdout.as_slice()).unwrap());
             eprintln!("```");
-
 
             eprintln!("warning: ");
             eprintln!("```");

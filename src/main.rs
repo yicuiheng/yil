@@ -27,5 +27,4 @@ fn main() {
     if let Err(typecheck::TypeError::Hoge(err)) = typecheck::check_program(program) {
         eprintln!("{}", err)
     }
-
 }

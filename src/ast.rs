@@ -9,10 +9,7 @@ pub struct PosInfo {
 
 impl PosInfo {
     pub fn dummy() -> Self {
-        Self {
-            start: 0,
-            end: 0
-        }
+        Self { start: 0, end: 0 }
     }
 }
 
@@ -33,10 +30,10 @@ impl Eq for Ident {}
 static FRESH_IDENT_COUNT: AtomicUsize = AtomicUsize::new(0);
 
 impl Ident {
-    pub fn  fresh() -> Self {
+    pub fn fresh() -> Self {
         Self {
             name: format!("<fresh-{}>", FRESH_IDENT_COUNT.fetch_add(1, SeqCst)),
-            pos: PosInfo::dummy()
+            pos: PosInfo::dummy(),
         }
     }
 }
@@ -106,8 +103,8 @@ pub struct Program {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct FuncType {
     pub params: Vec<Type>,
-    pub ret: Box<Type> ,
-    pub pos: PosInfo
+    pub ret: Box<Type>,
+    pub pos: PosInfo,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -121,7 +118,7 @@ pub struct NonFuncType {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
     FuncType(FuncType),
-    NonFuncType(NonFuncType)
+    NonFuncType(NonFuncType),
 }
 
 #[derive(Debug, PartialEq, Eq)]

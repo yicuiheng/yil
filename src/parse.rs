@@ -1,11 +1,11 @@
 use crate::ast::*;
 
+use itertools::{Itertools, Position};
 use pest::{
-    iterators::{Pair, Pairs},
     error,
+    iterators::{Pair, Pairs},
     Parser,
 };
-use itertools::{Itertools, Position};
 use std::collections::HashMap;
 
 #[derive(Parser)]
@@ -42,7 +42,7 @@ fn line_of<'a>(src: &'a str, mut line_num: usize) -> String {
 pub fn print_error(e: ParseError, src: &str) {
     match e {
         ParseError::Pest(error::Error {
-            variant: error::ErrorVariant::ParsingError {positives, ..},
+            variant: error::ErrorVariant::ParsingError { positives, .. },
             line_col,
             ..
         }) => {
@@ -50,17 +50,20 @@ pub fn print_error(e: ParseError, src: &str) {
                 error::LineColLocation::Pos((line, col)) => (line, col),
                 error::LineColLocation::Span((line, col), _) => (line, col),
             };
-            let mut msg = format!("{}\n", line_of(src, line-1));
-            msg.push_str(&format!("{}^^^\n", std::iter::repeat(' ').take(col).collect::<String>()));
+            let mut msg = format!("{}\n", line_of(src, line - 1));
+            msg.push_str(&format!(
+                "{}^^^\n",
+                std::iter::repeat(' ').take(col).collect::<String>()
+            ));
             msg.push_str(&format!("unexpected token at line {}\n expeted : ", line));
             for e in positives.iter().with_position() {
                 match e {
                     Position::First(p) | Position::Middle(p) => {
                         msg.push_str(rule_to_str(p));
-                    },
+                    }
                     Position::Last(p) => {
                         msg.push_str(rule_to_str(p));
-                    },
+                    }
                     Position::Only(p) => {
                         msg.push_str(rule_to_str(p));
                     }
@@ -68,7 +71,7 @@ pub fn print_error(e: ParseError, src: &str) {
             }
             eprintln!("{}", msg);
             std::process::exit(-1);
-        },
+        }
         _ => todo!(),
     }
 }
@@ -398,7 +401,7 @@ fn expr_from_pair(pair: Pair<Rule>) -> Result<Expr, ParseError> {
     match pair.as_rule() {
         Rule::let_expr => let_expr_from_pair(pair),
         Rule::or_expr => or_expr_from_pair(pair),
-        _ => unreachable!()
+        _ => unreachable!(),
     }
 }
 
@@ -533,8 +536,7 @@ fn apply_expr_from_pair(pair: Pair<Rule>) -> Result<Expr, ParseError> {
                 let pair = pairs.next().unwrap();
                 match pair.as_rule() {
                     Rule::right_paren => break,
-                    Rule::comma =>
-                        args.push(expr_from_pair(pairs.next().unwrap())?),
+                    Rule::comma => args.push(expr_from_pair(pairs.next().unwrap())?),
                     _ => unreachable!(),
                 }
             }
