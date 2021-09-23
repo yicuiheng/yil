@@ -81,7 +81,7 @@ keyword = { kw_ifz | kw_else | kw_let | kw_in | kw_rec | kw_func | kw_int | kw_t
 alpha = {'a'..'z' | 'A'..'Z'}
 digit = {'0'..'9'}
 
-ident_tail = { alpha | digit }
+ident_tail = { alpha | digit | "_" }
 
 ident = @{ !keyword ~ alpha ~ ident_tail* }
 
