@@ -1,132 +1,57 @@
 use crate::ast::*;
 
+mod error;
+mod test;
+mod util;
+
 use itertools::{Itertools, Position};
 use pest::{
-    error,
     iterators::{Pair, Pairs},
     Parser,
 };
 use std::collections::HashMap;
 
+pub use error::{print_error, ParseError};
+use util::*;
+
 #[derive(Parser)]
-#[grammar = "grammar.pest"]
+#[grammar = "parse/grammar.pest"]
 struct YilParser;
 
-#[derive(Debug)]
-pub enum ParseError {
-    Pest(error::Error<Rule>),
+pub fn program(str: &str) -> Result<Program, ParseError> {
+    let mut pairs = YilParser::parse(Rule::program, str)?;
+    let program_pair = pairs.nth(0).unwrap();
+    assert_eq!(program_pair.as_rule(), Rule::program);
+
+    program_from_pair(program_pair)
 }
 
-impl From<error::Error<Rule>> for ParseError {
-    fn from(item: error::Error<Rule>) -> Self {
-        ParseError::Pest(item)
-    }
+#[cfg(test)]
+pub fn func(str: &str) -> Result<Func, ParseError> {
+    let mut pairs = YilParser::parse(Rule::func, str)?;
+    let func_pair = pairs.nth(0).unwrap();
+    assert_eq!(func_pair.as_rule(), Rule::func);
+
+    func_from_pair(func_pair)
 }
 
-fn line_of<'a>(src: &'a str, mut line_num: usize) -> String {
-    let mut line = String::new();
-    for c in src.chars() {
-        if line_num == 0 && c == '\n' {
-            return line;
-        }
-        if line_num == 0 {
-            line.push(c);
-        }
-        if c == '\n' {
-            line_num -= 1;
-        }
-    }
-    unreachable!()
+#[cfg(test)]
+pub fn typ(str: &str) -> Result<Program, ParseError> {
+    let mut pairs = YilParser::parse(Rule::refine_type, str)?;
+    let program_pair = pairs.next().unwrap();
+    assert_eq!(program_pair.as_rule(), Rule::refine_type);
+    assert!(pairs.next().is_none());
+
+    program_from_pair(program_pair)
 }
 
-pub fn print_error(e: ParseError, src: &str) {
-    match e {
-        ParseError::Pest(error::Error {
-            variant: error::ErrorVariant::ParsingError { positives, .. },
-            line_col,
-            ..
-        }) => {
-            let (line, col) = match line_col {
-                error::LineColLocation::Pos((line, col)) => (line, col),
-                error::LineColLocation::Span((line, col), _) => (line, col),
-            };
-            let mut msg = format!("{}\n", line_of(src, line - 1));
-            msg.push_str(&format!(
-                "{}^^^\n",
-                std::iter::repeat(' ').take(col).collect::<String>()
-            ));
-            msg.push_str(&format!("unexpected token at line {}\n expeted : ", line));
-            for e in positives.iter().with_position() {
-                match e {
-                    Position::First(p) | Position::Middle(p) => {
-                        msg.push_str(rule_to_str(p));
-                    }
-                    Position::Last(p) => {
-                        msg.push_str(rule_to_str(p));
-                    }
-                    Position::Only(p) => {
-                        msg.push_str(rule_to_str(p));
-                    }
-                }
-            }
-            eprintln!("{}", msg);
-            std::process::exit(-1);
-        }
-        _ => todo!(),
-    }
-}
+#[cfg(test)]
+pub fn expr(str: &str) -> Result<Expr, ParseError> {
+    let mut pairs = YilParser::parse(Rule::expr, str)?;
+    let expr_pair = pairs.nth(0).unwrap();
+    assert_eq!(expr_pair.as_rule(), Rule::expr);
 
-fn span_to_pos_info(span: &pest::Span) -> PosInfo {
-    PosInfo {
-        start: span.start(),
-        end: span.end(),
-    }
-}
-
-fn rule_to_str(rule: &Rule) -> &'static str {
-    match rule {
-        Rule::func => "function",
-        Rule::refine_type => "refinement type",
-        Rule::formula => "logical formula",
-        Rule::primary_logical_expr => "logical primary expr",
-        Rule::base_type => "base type",
-        Rule::expr => "expression",
-        Rule::ifz_expr => "if-expresion",
-        Rule::let_expr => "let-expression",
-        Rule::constant => "constant",
-        Rule::variable => "variable",
-        Rule::paren_expr => "parened-expression",
-        Rule::left_paren => "'('",
-        Rule::right_paren => "')'",
-        Rule::left_brace => "'{'",
-        Rule::right_brace => "'}'",
-        Rule::plus => "'+'",
-        Rule::minus => "'-'",
-        Rule::ast => "'*'",
-        Rule::slash => "'/'",
-        Rule::equal => "'='",
-        Rule::and => "&",
-        Rule::or => "|",
-        Rule::eq => "=",
-        Rule::neq => "<>",
-        Rule::lt => "<",
-        Rule::leq => "<=",
-        Rule::gt => ">",
-        Rule::geq => ">=",
-        Rule::colon => "':'",
-        Rule::bar => "'|'",
-        Rule::kw_ifz => "'ifz'",
-        Rule::kw_else => "'else'",
-        Rule::kw_let => "'let'",
-        Rule::kw_in => "'in'",
-        Rule::kw_rec => "'rec'",
-        Rule::kw_func => "'func'",
-        Rule::kw_int => "'int'",
-        Rule::kw_true => "'true'",
-        Rule::kw_false => "'false'",
-        Rule::ident => "<ident>",
-        _ => unreachable!(),
-    }
+    expr_from_pair(expr_pair)
 }
 
 #[cfg(test)]
@@ -137,14 +62,6 @@ pub fn ident(str: &str) -> Result<Ident, ParseError> {
         name: ident_pair.as_str().to_string(),
         pos: span_to_pos_info(&ident_pair.as_span()),
     })
-}
-
-pub fn program(str: &str) -> Result<Program, ParseError> {
-    let mut pairs = YilParser::parse(Rule::program, str)?;
-    let program_pair = pairs.nth(0).unwrap();
-    assert_eq!(program_pair.as_rule(), Rule::program);
-
-    program_from_pair(program_pair)
 }
 
 fn program_from_pair(pair: Pair<Rule>) -> Result<Program, ParseError> {
@@ -161,15 +78,6 @@ fn program_from_pair(pair: Pair<Rule>) -> Result<Program, ParseError> {
         funcs: funcs,
         pos: pos,
     })
-}
-
-#[cfg(test)]
-pub fn func(str: &str) -> Result<Func, ParseError> {
-    let mut pairs = YilParser::parse(Rule::func, str)?;
-    let func_pair = pairs.nth(0).unwrap();
-    assert_eq!(func_pair.as_rule(), Rule::func);
-
-    func_from_pair(func_pair)
 }
 
 fn func_from_pair(pair: Pair<Rule>) -> Result<Func, ParseError> {
@@ -382,15 +290,6 @@ fn type_from_pair(pair: Pair<Rule>) -> Result<Type, ParseError> {
         formula,
         pos,
     }))
-}
-
-#[cfg(test)]
-pub fn expr(str: &str) -> Result<Expr, ParseError> {
-    let mut pairs = YilParser::parse(Rule::expr, str)?;
-    let expr_pair = pairs.nth(0).unwrap();
-    assert_eq!(expr_pair.as_rule(), Rule::expr);
-
-    expr_from_pair(expr_pair)
 }
 
 fn expr_from_pair(pair: Pair<Rule>) -> Result<Expr, ParseError> {
@@ -631,165 +530,4 @@ fn ident_from_pair(pair: Pair<Rule>) -> Result<Ident, ParseError> {
         name: pair.as_str().to_string(),
         pos: span_to_pos_info(&pair.as_span()),
     })
-}
-
-#[test]
-fn test() {
-    assert_eq!(ident("hoge42").unwrap().name, "hoge42");
-    assert!(ident("42hoge").is_err());
-    assert!(ident("42").is_err());
-
-    assert_eq!(
-        expr("1 + 2 + a").unwrap(), // (1 + 2) + 3
-        Expr::BinApp(
-            BinOp::Add(PosInfo { start: 6, end: 7 }),
-            Box::new(Expr::BinApp(
-                BinOp::Add(PosInfo { start: 2, end: 3 }),
-                Box::new(Expr::Constant(Constant {
-                    val: 1,
-                    pos: PosInfo { start: 0, end: 1 }
-                },)),
-                Box::new(Expr::Constant(Constant {
-                    val: 2,
-                    pos: PosInfo { start: 4, end: 5 }
-                })),
-                PosInfo { start: 0, end: 6 }
-            )),
-            Box::new(Expr::Var(Ident {
-                name: "a".to_string(),
-                pos: PosInfo { start: 8, end: 9 }
-            })),
-            PosInfo { start: 0, end: 9 }
-        )
-    );
-    assert_eq!(
-        expr("(1 * 2 * 3)").unwrap(), // (1 * 2) * 3
-        Expr::BinApp(
-            BinOp::Mul(PosInfo { start: 7, end: 8 }),
-            Box::new(Expr::BinApp(
-                BinOp::Mul(PosInfo { start: 3, end: 4 }),
-                Box::new(Expr::Constant(Constant {
-                    val: 1,
-                    pos: PosInfo { start: 1, end: 2 }
-                },)),
-                Box::new(Expr::Constant(Constant {
-                    val: 2,
-                    pos: PosInfo { start: 5, end: 6 }
-                })),
-                PosInfo { start: 1, end: 6 }
-            )),
-            Box::new(Expr::Constant(Constant {
-                val: 3,
-                pos: PosInfo { start: 9, end: 10 }
-            })),
-            PosInfo { start: 1, end: 10 }
-        )
-    );
-
-    assert_eq!(
-        expr("1 + ifz a { 41 } else { 90 + 9 }").unwrap(),
-        Expr::BinApp(
-            BinOp::Add(PosInfo { start: 2, end: 3 }),
-            Box::new(Expr::Constant(Constant {
-                val: 1,
-                pos: PosInfo { start: 0, end: 1 }
-            })),
-            Box::new(Expr::Ifz(
-                Box::new(Expr::Var(Ident {
-                    name: "a".to_string(),
-                    pos: PosInfo { start: 8, end: 9 }
-                })),
-                Box::new(Expr::Constant(Constant {
-                    val: 41,
-                    pos: PosInfo { start: 12, end: 14 }
-                })),
-                Box::new(Expr::BinApp(
-                    BinOp::Add(PosInfo { start: 27, end: 28 }),
-                    Box::new(Expr::Constant(Constant {
-                        val: 90,
-                        pos: PosInfo { start: 24, end: 26 }
-                    })),
-                    Box::new(Expr::Constant(Constant {
-                        val: 9,
-                        pos: PosInfo { start: 29, end: 30 }
-                    })),
-                    PosInfo { start: 24, end: 31 }
-                )),
-                PosInfo { start: 4, end: 32 }
-            )),
-            PosInfo { start: 0, end: 32 }
-        )
-    );
-
-    assert_eq!(
-        expr("let a = 1 in let b = 2 in a + b").unwrap(),
-        Expr::Let(
-            Ident {
-                name: "a".to_string(),
-                pos: PosInfo { start: 4, end: 5 }
-            },
-            Box::new(Expr::Constant(Constant {
-                val: 1,
-                pos: PosInfo { start: 8, end: 9 }
-            })),
-            Box::new(Expr::Let(
-                Ident {
-                    name: "b".to_string(),
-                    pos: PosInfo { start: 17, end: 18 }
-                },
-                Box::new(Expr::Constant(Constant {
-                    val: 2,
-                    pos: PosInfo { start: 21, end: 22 }
-                })),
-                Box::new(Expr::BinApp(
-                    BinOp::Add(PosInfo { start: 28, end: 29 }),
-                    Box::new(Expr::Var(Ident {
-                        name: "a".to_string(),
-                        pos: PosInfo { start: 26, end: 27 }
-                    })),
-                    Box::new(Expr::Var(Ident {
-                        name: "b".to_string(),
-                        pos: PosInfo { start: 30, end: 31 }
-                    })),
-                    PosInfo { start: 26, end: 31 }
-                )),
-                PosInfo { start: 13, end: 31 }
-            )),
-            PosInfo { start: 0, end: 31 }
-        )
-    );
-
-    assert_eq!(
-        func("rec func hoge (x: int | true): (y: int | true) ( x ) ").unwrap(),
-        Func {
-            name: Ident {
-                name: "hoge".to_string(),
-                pos: PosInfo { start: 9, end: 13 }
-            },
-            params: vec![Type::NonFuncType(NonFuncType {
-                param_name: Ident {
-                    name: "x".to_string(),
-                    pos: PosInfo { start: 15, end: 16 }
-                },
-                base_type: BaseType::Int(PosInfo { start: 18, end: 21 }),
-                formula: logic::Formula::True(PosInfo { start: 24, end: 28 }),
-                pos: PosInfo { start: 14, end: 29 }
-            })],
-            ret: Type::NonFuncType(NonFuncType {
-                param_name: Ident {
-                    name: "y".to_string(),
-                    pos: PosInfo { start: 32, end: 33 }
-                },
-                base_type: BaseType::Int(PosInfo { start: 35, end: 38 }),
-                formula: logic::Formula::True(PosInfo { start: 41, end: 45 }),
-                pos: PosInfo { start: 31, end: 46 }
-            }),
-            is_rec: true,
-            body: Expr::Var(Ident {
-                name: "x".to_string(),
-                pos: PosInfo { start: 49, end: 50 }
-            }),
-            pos: PosInfo { start: 0, end: 52 }
-        }
-    );
 }
