@@ -36,6 +36,7 @@ pub fn rule_to_str(rule: &Rule) -> &'static str {
         Rule::colon => "':'",
         Rule::comma => "','",
         Rule::bar => "'|'",
+        Rule::arrow => "->",
 
         Rule::kw_ifz => "'ifz'",
         Rule::kw_else => "'else'",

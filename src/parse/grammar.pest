@@ -2,11 +2,16 @@ program = { func+ }
 
 func = { kw_rec? ~ kw_func ~ ident ~ refine_type* ~ colon ~ refine_type ~ paren_expr }
 
-refine_type = { left_paren ~ ident ~ colon ~ base_type ~ bar ~ formula ~ right_paren }
+refine_type = { primary_refine_type ~ (arrow ~ primary_refine_type)* }
+primary_refine_type = {
+    refine_non_func_type |
+    left_paren ~ refine_type ~ right_paren}
+
+refine_non_func_type = { left_paren ~ ident ~ colon ~ base_type ~ bar ~ formula ~ right_paren }
 
 formula = { and_formula ~ (or ~ and_formula)* }
 and_formula = { binop_formula ~ (and ~ binop_formula)* }
-binop_formula = { kw_true | kw_false | (additive_logical_expr ~ (eq | neq | lt | leq | gt | geq) ~ additive_logical_expr) }
+binop_formula = { kw_true | kw_false | (additive_logical_expr ~ (eq | neq | leq | lt | geq | gt) ~ additive_logical_expr) }
 additive_logical_expr = { multive_logical_expr ~ ((plus | minus) ~ multive_logical_expr)* }
 multive_logical_expr = { primary_logical_expr ~ ((ast | slash) ~ primary_logical_expr)* }
 primary_logical_expr = { ident | constant | left_paren ~ additive_logical_expr ~ right_paren }
@@ -39,7 +44,7 @@ primary_expr = {
 }
 
 ifz_expr = { kw_ifz ~ expr ~ left_brace ~ expr ~ right_brace ~ kw_else ~ left_brace ~ expr ~ right_brace }
-constant = @{ digit+ }
+constant = @{ minus? ~ digit+ }
 variable = { ident }
 paren_expr = { left_paren ~ expr ~ right_paren }
 
@@ -63,6 +68,7 @@ geq = { ">=" }
 colon = { ":" }
 comma = { "," }
 bar = { "|" }
+arrow = { "->" }
 
 kw_ifz = { "ifz" }
 kw_else = { "else" }

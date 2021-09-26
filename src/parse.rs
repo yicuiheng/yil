@@ -36,13 +36,13 @@ pub fn func(str: &str) -> Result<Func, ParseError> {
 }
 
 #[cfg(test)]
-pub fn typ(str: &str) -> Result<Program, ParseError> {
+pub fn typ(str: &str) -> Result<Type, ParseError> {
     let mut pairs = YilParser::parse(Rule::refine_type, str)?;
-    let program_pair = pairs.next().unwrap();
-    assert_eq!(program_pair.as_rule(), Rule::refine_type);
+    let type_pair = pairs.next().unwrap();
+    assert_eq!(type_pair.as_rule(), Rule::refine_type);
     assert!(pairs.next().is_none());
 
-    program_from_pair(program_pair)
+    refine_type_from_pair(type_pair)
 }
 
 #[cfg(test)]
@@ -99,13 +99,13 @@ fn func_from_pair(pair: Pair<Rule>) -> Result<Func, ParseError> {
     let mut params = vec![];
     let mut pair = pairs.next().unwrap();
     while pair.as_rule() == Rule::refine_type {
-        params.push(type_from_pair(pair)?);
+        params.push(refine_type_from_pair(pair)?);
         pair = pairs.next().unwrap();
     }
 
     assert_eq!(pair.as_rule(), Rule::colon);
 
-    let ret = type_from_pair(pairs.next().unwrap())?;
+    let ret = refine_type_from_pair(pairs.next().unwrap())?;
     let body = paren_expr_from_pair(pairs.next().unwrap())?;
 
     Ok(Func {
@@ -272,8 +272,59 @@ fn primary_logical_expr_from_pair(pair: Pair<Rule>) -> Result<logic::Expr, Parse
     }
 }
 
-fn type_from_pair(pair: Pair<Rule>) -> Result<Type, ParseError> {
+fn refine_type_from_pair(pair: Pair<Rule>) -> Result<Type, ParseError> {
     assert_eq!(pair.as_rule(), Rule::refine_type);
+    let mut pairs = pair.into_inner();
+
+    let pair = pairs.next().unwrap();
+    let start_pos = pair.as_span().start();
+    assert_eq!(pair.as_rule(), Rule::primary_refine_type);
+    let mut param_types = vec![];
+    let mut ret_type = primary_refine_type_from_pair(pair)?;
+    let mut end_pos = 0;
+
+    while let Some(pair) = pairs.next() {
+        assert_eq!(pair.as_rule(), Rule::arrow);
+        let pair = pairs.next().unwrap();
+        end_pos = pair.as_span().end();
+        assert_eq!(pair.as_rule(), Rule::primary_refine_type);
+        param_types.push(ret_type);
+        ret_type = primary_refine_type_from_pair(pair)?;
+    }
+    if param_types.is_empty() {
+        Ok(ret_type)
+    } else {
+        Ok(Type::FuncType(FuncType {
+            params: param_types,
+            ret: Box::new(ret_type),
+            pos: PosInfo {
+                start: start_pos,
+                end: end_pos,
+            },
+        }))
+    }
+}
+
+fn primary_refine_type_from_pair(pair: Pair<Rule>) -> Result<Type, ParseError> {
+    assert_eq!(pair.as_rule(), Rule::primary_refine_type);
+    let mut pairs = pair.into_inner();
+    let pair = pairs.next().unwrap();
+
+    match pair.as_rule() {
+        Rule::refine_non_func_type => refine_non_func_type_from_pair(pair),
+        Rule::left_paren => {
+            let pair = pairs.next().unwrap();
+            assert_eq!(pair.as_rule(), Rule::refine_type);
+            let typ = refine_type_from_pair(pair);
+            assert_eq!(pairs.next().unwrap().as_rule(), Rule::right_paren);
+            typ
+        }
+        _ => unreachable!(),
+    }
+}
+
+fn refine_non_func_type_from_pair(pair: Pair<Rule>) -> Result<Type, ParseError> {
+    assert_eq!(pair.as_rule(), Rule::refine_non_func_type);
     let pos = span_to_pos_info(&pair.as_span());
     let mut pairs = pair.into_inner();
 

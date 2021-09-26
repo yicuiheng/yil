@@ -1,165 +1,259 @@
+use crate::ast::logic::BinPred;
 #[cfg(test)]
 use crate::ast::*;
 
 #[cfg(test)]
-use super::{expr, func, ident};
+use super::{expr, func, ident, program, typ};
 
 #[test]
-fn parse_func_test() {
+fn parse_program_test() {
     assert_eq!(
-        func("rec func hoge (x: int | true): (y: int | true) ( x ) ").unwrap(),
-        Func {
-            name: Ident {
-                name: "hoge".to_string(),
-                pos: PosInfo { start: 9, end: 13 }
-            },
-            params: vec![Type::NonFuncType(NonFuncType {
-                param_name: Ident {
-                    name: "x".to_string(),
-                    pos: PosInfo { start: 15, end: 16 }
-                },
-                base_type: BaseType::Int(PosInfo { start: 18, end: 21 }),
-                formula: logic::Formula::True(PosInfo { start: 24, end: 28 }),
-                pos: PosInfo { start: 14, end: 29 }
-            })],
-            ret: Type::NonFuncType(NonFuncType {
-                param_name: Ident {
-                    name: "y".to_string(),
-                    pos: PosInfo { start: 32, end: 33 }
-                },
-                base_type: BaseType::Int(PosInfo { start: 35, end: 38 }),
-                formula: logic::Formula::True(PosInfo { start: 41, end: 45 }),
-                pos: PosInfo { start: 31, end: 46 }
-            }),
-            is_rec: true,
-            body: Expr::Var(Ident {
-                name: "x".to_string(),
-                pos: PosInfo { start: 49, end: 50 }
-            }),
-            pos: PosInfo { start: 0, end: 52 }
+        program("func hoge: (x: int | true) ( 1 )").unwrap(),
+        Program {
+            funcs: vec![Func {
+                name: Ident::new("hoge"),
+                params: vec![],
+                ret: Type::NonFuncType(NonFuncType {
+                    param_name: Ident::new("x"),
+                    base_type: BaseType::Int(PosInfo::dummy()),
+                    formula: logic::Formula::True(PosInfo::dummy()),
+                    pos: PosInfo::dummy()
+                }),
+                is_rec: false,
+                body: Expr::Constant(Constant::new(1)),
+                pos: PosInfo::dummy()
+            }],
+            pos: PosInfo::dummy(),
         }
     );
 }
 
 #[test]
+fn parse_func_test() {
+    assert_eq!(
+        func("rec func hoge: (x: int | true) ( 1 ) ").unwrap(),
+        Func {
+            name: Ident::new("hoge"),
+            params: vec![],
+            ret: Type::NonFuncType(NonFuncType {
+                param_name: Ident::new("x"),
+                base_type: BaseType::Int(PosInfo::dummy()),
+                formula: logic::Formula::True(PosInfo::dummy()),
+                pos: PosInfo::dummy()
+            }),
+            is_rec: true,
+            body: Expr::Constant(Constant::new(1)),
+            pos: PosInfo::dummy()
+        }
+    );
+
+    assert_eq!(
+        func("func hoge (x: int | true): (y: int | true) ( x ) ").unwrap(),
+        Func {
+            name: Ident::new("hoge"),
+            params: vec![Type::NonFuncType(NonFuncType {
+                param_name: Ident::new("x"),
+                base_type: BaseType::Int(PosInfo::dummy()),
+                formula: logic::Formula::True(PosInfo::dummy()),
+                pos: PosInfo::dummy()
+            })],
+            ret: Type::NonFuncType(NonFuncType {
+                param_name: Ident::new("y"),
+                base_type: BaseType::Int(PosInfo::dummy()),
+                formula: logic::Formula::True(PosInfo::dummy()),
+                pos: PosInfo::dummy()
+            }),
+            is_rec: false,
+            body: Expr::Var(Ident::new("x")),
+            pos: PosInfo::dummy()
+        }
+    );
+
+    assert_eq!(
+        func("func hoge (x: int | true) (y: int | true): (z: int | true) ( x ) ").unwrap(),
+        Func {
+            name: Ident::new("hoge"),
+            params: vec![
+                Type::NonFuncType(NonFuncType {
+                    param_name: Ident::new("x"),
+                    base_type: BaseType::Int(PosInfo::dummy()),
+                    formula: logic::Formula::True(PosInfo::dummy()),
+                    pos: PosInfo::dummy()
+                }),
+                Type::NonFuncType(NonFuncType {
+                    param_name: Ident::new("y"),
+                    base_type: BaseType::Int(PosInfo::dummy()),
+                    formula: logic::Formula::True(PosInfo::dummy()),
+                    pos: PosInfo::dummy()
+                })
+            ],
+            ret: Type::NonFuncType(NonFuncType {
+                param_name: Ident::new("z"),
+                base_type: BaseType::Int(PosInfo::dummy()),
+                formula: logic::Formula::True(PosInfo::dummy()),
+                pos: PosInfo::dummy()
+            }),
+            is_rec: false,
+            body: Expr::Var(Ident::new("x")),
+            pos: PosInfo::dummy()
+        }
+    );
+}
+
+#[test]
+fn parse_type_test() {
+    assert_eq!(
+        typ("(n: int | true)").unwrap(),
+        Type::NonFuncType(NonFuncType {
+            param_name: Ident::new("n"),
+            base_type: BaseType::Int(PosInfo::dummy()),
+            formula: logic::Formula::True(PosInfo::dummy()),
+            pos: PosInfo::dummy()
+        })
+    );
+
+    assert_eq!(
+        typ("(n: int | n >= 0)").unwrap(),
+        Type::NonFuncType(NonFuncType {
+            param_name: Ident::new("n"),
+            base_type: BaseType::Int(PosInfo::dummy()),
+            formula: logic::Formula::BinApp(
+                logic::BinPred::Geq(PosInfo::dummy()),
+                logic::Expr::Var(Ident::new("n")),
+                logic::Expr::Constant(Constant::new(0)),
+                PosInfo::dummy()
+            ),
+            pos: PosInfo::dummy()
+        })
+    );
+
+    assert_eq!(
+        typ("(x: int | true) -> (y: int | true)").unwrap(),
+        Type::FuncType(FuncType {
+            params: vec![Type::NonFuncType(NonFuncType {
+                param_name: Ident::new("x"),
+                base_type: BaseType::Int(PosInfo::dummy()),
+                formula: logic::Formula::True(PosInfo::dummy()),
+                pos: PosInfo::dummy()
+            })],
+            ret: Box::new(Type::NonFuncType(NonFuncType {
+                param_name: Ident::new("y"),
+                base_type: BaseType::Int(PosInfo::dummy()),
+                formula: logic::Formula::True(PosInfo::dummy()),
+                pos: PosInfo::dummy()
+            })),
+            pos: PosInfo::dummy()
+        })
+    );
+}
+
+#[test]
 fn parse_expr_test() {
+    assert_eq!(expr("0").unwrap(), Expr::Constant(Constant::new(0)));
+    assert_eq!(expr("-1").unwrap(), Expr::Constant(Constant::new(-1)));
+
     assert_eq!(
-        expr("1 + 2 + a").unwrap(), // (1 + 2) + 3
+        expr("1 + 2 + 3").unwrap(), // (1 + 2) + 3
         Expr::BinApp(
-            BinOp::Add(PosInfo { start: 6, end: 7 }),
+            BinOp::Add(PosInfo::dummy()),
             Box::new(Expr::BinApp(
-                BinOp::Add(PosInfo { start: 2, end: 3 }),
-                Box::new(Expr::Constant(Constant {
-                    val: 1,
-                    pos: PosInfo { start: 0, end: 1 }
-                },)),
-                Box::new(Expr::Constant(Constant {
-                    val: 2,
-                    pos: PosInfo { start: 4, end: 5 }
-                })),
-                PosInfo { start: 0, end: 6 }
+                BinOp::Add(PosInfo::dummy()),
+                Box::new(Expr::Constant(Constant::new(1))),
+                Box::new(Expr::Constant(Constant::new(2))),
+                PosInfo::dummy()
             )),
-            Box::new(Expr::Var(Ident {
-                name: "a".to_string(),
-                pos: PosInfo { start: 8, end: 9 }
-            })),
-            PosInfo { start: 0, end: 9 }
+            Box::new(Expr::Constant(Constant::new(3))),
+            PosInfo::dummy()
         )
     );
     assert_eq!(
-        expr("(1 * 2 * 3)").unwrap(), // (1 * 2) * 3
+        expr("1 + 2 * 3").unwrap(), // 1 + (2 * 3)
         Expr::BinApp(
-            BinOp::Mul(PosInfo { start: 7, end: 8 }),
+            BinOp::Add(PosInfo::dummy()),
+            Box::new(Expr::Constant(Constant::new(1))),
             Box::new(Expr::BinApp(
-                BinOp::Mul(PosInfo { start: 3, end: 4 }),
-                Box::new(Expr::Constant(Constant {
-                    val: 1,
-                    pos: PosInfo { start: 1, end: 2 }
-                },)),
-                Box::new(Expr::Constant(Constant {
-                    val: 2,
-                    pos: PosInfo { start: 5, end: 6 }
-                })),
-                PosInfo { start: 1, end: 6 }
+                BinOp::Mul(PosInfo::dummy()),
+                Box::new(Expr::Constant(Constant::new(2))),
+                Box::new(Expr::Constant(Constant::new(3))),
+                PosInfo::dummy()
             )),
-            Box::new(Expr::Constant(Constant {
-                val: 3,
-                pos: PosInfo { start: 9, end: 10 }
-            })),
-            PosInfo { start: 1, end: 10 }
-        )
+            PosInfo::dummy()
+        ),
     );
 
     assert_eq!(
-        expr("1 + ifz a { 41 } else { 90 + 9 }").unwrap(),
+        expr("1 + ifz a { 2 } else { 3 }").unwrap(),
         Expr::BinApp(
-            BinOp::Add(PosInfo { start: 2, end: 3 }),
-            Box::new(Expr::Constant(Constant {
-                val: 1,
-                pos: PosInfo { start: 0, end: 1 }
-            })),
+            BinOp::Add(PosInfo::dummy()),
+            Box::new(Expr::Constant(Constant::new(1))),
             Box::new(Expr::Ifz(
-                Box::new(Expr::Var(Ident {
-                    name: "a".to_string(),
-                    pos: PosInfo { start: 8, end: 9 }
-                })),
-                Box::new(Expr::Constant(Constant {
-                    val: 41,
-                    pos: PosInfo { start: 12, end: 14 }
-                })),
-                Box::new(Expr::BinApp(
-                    BinOp::Add(PosInfo { start: 27, end: 28 }),
-                    Box::new(Expr::Constant(Constant {
-                        val: 90,
-                        pos: PosInfo { start: 24, end: 26 }
-                    })),
-                    Box::new(Expr::Constant(Constant {
-                        val: 9,
-                        pos: PosInfo { start: 29, end: 30 }
-                    })),
-                    PosInfo { start: 24, end: 31 }
-                )),
-                PosInfo { start: 4, end: 32 }
+                Box::new(Expr::Var(Ident::new("a"))),
+                Box::new(Expr::Constant(Constant::new(2))),
+                Box::new(Expr::Constant(Constant::new(3))),
+                PosInfo::dummy()
             )),
-            PosInfo { start: 0, end: 32 }
+            PosInfo::dummy()
         )
     );
 
     assert_eq!(
-        expr("let a = 0 in let b = 2 in a + b").unwrap(),
+        expr("let a = 0 in let b = 1 in a + b").unwrap(),
         Expr::Let(
-            Ident {
-                name: "a".to_string(),
-                pos: PosInfo { start: 4, end: 5 }
-            },
-            Box::new(Expr::Constant(Constant {
-                val: 0,
-                pos: PosInfo { start: 8, end: 9 }
-            })),
+            Ident::new("a"),
+            Box::new(Expr::Constant(Constant::new(0))),
             Box::new(Expr::Let(
-                Ident {
-                    name: "b".to_string(),
-                    pos: PosInfo { start: 17, end: 18 }
-                },
-                Box::new(Expr::Constant(Constant {
-                    val: 2,
-                    pos: PosInfo { start: 21, end: 22 }
-                })),
+                Ident::new("b"),
+                Box::new(Expr::Constant(Constant::new(1))),
                 Box::new(Expr::BinApp(
-                    BinOp::Add(PosInfo { start: 28, end: 29 }),
-                    Box::new(Expr::Var(Ident {
-                        name: "a".to_string(),
-                        pos: PosInfo { start: 26, end: 27 }
-                    })),
-                    Box::new(Expr::Var(Ident {
-                        name: "b".to_string(),
-                        pos: PosInfo { start: 30, end: 31 }
-                    })),
-                    PosInfo { start: 26, end: 31 }
+                    BinOp::Add(PosInfo::dummy()),
+                    Box::new(Expr::Var(Ident::new("a"))),
+                    Box::new(Expr::Var(Ident::new("b"))),
+                    PosInfo::dummy()
                 )),
-                PosInfo { start: 13, end: 31 }
+                PosInfo::dummy()
             )),
-            PosInfo { start: 0, end: 31 }
+            PosInfo::dummy()
+        )
+    );
+
+    assert_eq!(
+        expr("let a = let b = 1 in b in a").unwrap(),
+        Expr::Let(
+            Ident::new("a"),
+            Box::new(Expr::Let(
+                Ident::new("b"),
+                Box::new(Expr::Constant(Constant::new(1))),
+                Box::new(Expr::Var(Ident::new("b"))),
+                PosInfo::dummy()
+            )),
+            Box::new(Expr::Var(Ident::new("a"))),
+            PosInfo::dummy()
+        ),
+    );
+
+    assert_eq!(
+        expr("f ()").unwrap(),
+        Expr::FuncApp(Ident::new("f"), vec![], PosInfo::dummy())
+    );
+
+    assert_eq!(
+        expr("f (1)").unwrap(),
+        Expr::FuncApp(
+            Ident::new("f"),
+            vec![Expr::Constant(Constant::new(1))],
+            PosInfo::dummy()
+        )
+    );
+
+    assert_eq!(
+        expr("f (1, 2)").unwrap(),
+        Expr::FuncApp(
+            Ident::new("f"),
+            vec![
+                Expr::Constant(Constant::new(1)),
+                Expr::Constant(Constant::new(2))
+            ],
+            PosInfo::dummy()
         )
     );
 }

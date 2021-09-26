@@ -1,31 +1,44 @@
 use std::fmt::Debug;
 use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 
+#[cfg(not(test))]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct PosInfo {
     pub start: usize,
     pub end: usize,
 }
 
+#[cfg(test)]
+#[derive(Debug, Clone, Hash)]
+pub struct PosInfo {
+    pub start: usize,
+    pub end: usize,
+}
+
+#[cfg(test)]
+impl PartialEq for PosInfo {
+    fn eq(&self, other: &Self) -> bool {
+        (self.start == 0 && self.end == 0)
+            || (other.start == 0 && other.end == 0)
+            || (self.start == other.start && self.end == other.end)
+    }
+}
+
+#[cfg(test)]
+impl Eq for PosInfo {}
+
 impl PosInfo {
     pub fn dummy() -> Self {
+        //[0, 0] を特別扱いする
         Self { start: 0, end: 0 }
     }
 }
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Ident {
     pub name: String,
     pub pos: PosInfo,
 }
-
-impl PartialEq for Ident {
-    fn eq(&self, other: &Self) -> bool {
-        self.name == other.name
-    }
-}
-
-impl Eq for Ident {}
 
 static FRESH_IDENT_COUNT: AtomicUsize = AtomicUsize::new(0);
 
@@ -33,6 +46,14 @@ impl Ident {
     pub fn fresh() -> Self {
         Self {
             name: format!("<fresh-{}>", FRESH_IDENT_COUNT.fetch_add(1, SeqCst)),
+            pos: PosInfo::dummy(),
+        }
+    }
+
+    #[cfg(test)]
+    pub fn new(name: &str) -> Self {
+        Self {
+            name: name.to_string(),
             pos: PosInfo::dummy(),
         }
     }
@@ -135,6 +156,16 @@ pub struct Func {
 pub struct Constant {
     pub val: i64,
     pub pos: PosInfo,
+}
+
+impl Constant {
+    #[cfg(test)]
+    pub fn new(val: i64) -> Self {
+        Self {
+            val,
+            pos: PosInfo::dummy(),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
