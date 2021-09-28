@@ -10,10 +10,14 @@ primary_refine_type = {
 refine_non_func_type = { left_paren ~ ident ~ colon ~ base_type ~ bar ~ formula ~ right_paren }
 
 formula = { and_formula ~ (or ~ and_formula)* }
-and_formula = { binop_formula ~ (and ~ binop_formula)* }
-binop_formula = { kw_true | kw_false | (additive_logical_expr ~ (eq | neq | leq | lt | geq | gt) ~ additive_logical_expr) }
+and_formula = { imply_formula ~ (and ~ imply_formula)* }
+imply_formula = { binop_formula ~ (fat_arrow ~ binop_formula)* }
+binop_formula = {
+    kw_true | kw_false |
+    (additive_logical_expr ~ (eq | neq | leq | lt | geq | gt) ~ additive_logical_expr) |
+    (left_paren ~ formula ~ right_paren) }
 additive_logical_expr = { multive_logical_expr ~ ((plus | minus) ~ multive_logical_expr)* }
-multive_logical_expr = { primary_logical_expr ~ ((ast | slash) ~ primary_logical_expr)* }
+multive_logical_expr = { primary_logical_expr ~ ((ast | slash | percent) ~ primary_logical_expr)* }
 primary_logical_expr = { ident | constant | left_paren ~ additive_logical_expr ~ right_paren }
 
 base_type = { kw_int }
@@ -29,7 +33,7 @@ and_expr = { comp_expr ~ (and ~ comp_expr)* }
 comp_expr = { additive_expr ~ ((eq | neq | lt | leq | gt | geq) ~ additive_expr)* }
 
 additive_expr = { multive_expr ~ ((plus | minus) ~ multive_expr)* }
-multive_expr = { apply_expr ~ ((ast | slash) ~ apply_expr)* }
+multive_expr = { apply_expr ~ ((ast | slash | percent) ~ apply_expr)* }
 
 apply_expr = {
     (ident ~ left_paren ~ right_paren) |
@@ -56,6 +60,7 @@ plus = { "+" }
 minus = { "-" }
 ast = { "*" }
 slash = { "/" }
+percent = { "%" }
 or = { "|" }
 and = { "&" }
 equal = { "=" }
@@ -69,6 +74,7 @@ colon = { ":" }
 comma = { "," }
 bar = { "|" }
 arrow = { "->" }
+fat_arrow = { "=>" }
 
 kw_ifz = { "ifz" }
 kw_else = { "else" }

@@ -84,6 +84,7 @@ pub mod logic {
         Not(Box<Formula>, PosInfo),
         And(Box<Formula>, Box<Formula>, PosInfo),
         Or(Box<Formula>, Box<Formula>, PosInfo),
+        Imply(Box<Formula>, Box<Formula>, PosInfo),
         BinApp(BinPred, Expr, Expr, PosInfo),
     }
 
@@ -99,6 +100,7 @@ pub mod logic {
         Mult(PosInfo),
         Sub(PosInfo),
         Div(PosInfo),
+        Surplus(PosInfo),
     }
 
     #[derive(Debug, PartialEq, Eq, Clone)]
@@ -182,6 +184,7 @@ pub enum BinOp {
     Sub(PosInfo),
     Mul(PosInfo),
     Div(PosInfo),
+    Surplus(PosInfo),
 }
 
 #[derive(Debug, PartialEq, Eq)]

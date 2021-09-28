@@ -1,5 +1,5 @@
 rec func is_even (n:int | n >= 0) :
-  (ret: int | ((n % 2 = 0) => ret = 0) and ((n %2 != 0) => ret = 1)) (
+  (ret: int | ((n % 2 = 0) => ret = 0) & ((n %2 <> 0) => ret = 1)) (
 
   ifz n { 0 }
   else { is_odd (n - 1) }

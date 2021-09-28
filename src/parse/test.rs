@@ -1,4 +1,3 @@
-use crate::ast::logic::BinPred;
 #[cfg(test)]
 use crate::ast::*;
 

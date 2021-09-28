@@ -4,7 +4,7 @@ mod error;
 mod test;
 mod util;
 
-use itertools::{Itertools, Position};
+use itertools::Position;
 use pest::{
     iterators::{Pair, Pairs},
     Parser,
@@ -183,12 +183,25 @@ fn and_formula_from_pair(pair: Pair<Rule>) -> Result<logic::Formula, ParseError>
     assert_eq!(pair.as_rule(), Rule::and_formula);
     binop(
         pair.into_inner(),
+        Rule::imply_formula,
+        imply_formula_from_pair,
+        HashMap::from_iter(IntoIter::new([(Rule::and, |_| logic::Formula::And)])),
+        |op, lhs, rhs, pos| op(Box::new(lhs), Box::new(rhs), pos),
+    )
+}
+
+fn imply_formula_from_pair(pair: Pair<Rule>) -> Result<logic::Formula, ParseError> {
+    use std::array::IntoIter;
+    use std::iter::FromIterator;
+
+    assert_eq!(pair.as_rule(), Rule::imply_formula);
+    binop(
+        pair.into_inner(),
         Rule::binop_formula,
         binop_formula_from_pair,
-        HashMap::from_iter(IntoIter::new([(
-            Rule::and,
-            Box::new(|_| logic::Formula::And),
-        )])),
+        HashMap::from_iter(IntoIter::new([(Rule::fat_arrow, |_| {
+            logic::Formula::Imply
+        })])),
         |op, lhs, rhs, pos| op(Box::new(lhs), Box::new(rhs), pos),
     )
 }
@@ -216,6 +229,12 @@ fn binop_formula_from_pair(pair: Pair<Rule>) -> Result<logic::Formula, ParseErro
             };
             let expr2 = additive_logical_expr_from_pair(pairs.next().unwrap())?;
             logic::Formula::BinApp(op, expr1, expr2, pos)
+        }
+        Rule::left_paren => {
+            assert_eq!(pairs.next().unwrap().as_rule(), Rule::left_paren);
+            let formula = formula_from_pair(pairs.next().unwrap())?;
+            assert_eq!(pairs.next().unwrap().as_rule(), Rule::right_paren);
+            formula
         }
         _ => unreachable!(),
     })
@@ -250,6 +269,7 @@ fn multive_logical_expr_from_pair(pair: Pair<Rule>) -> Result<logic::Expr, Parse
         HashMap::from_iter(IntoIter::new([
             (Rule::ast, logic::BinOp::Mult as fn(PosInfo) -> logic::BinOp),
             (Rule::slash, logic::BinOp::Div),
+            (Rule::percent, logic::BinOp::Surplus),
         ])),
         |op, lhs, rhs, pos| logic::Expr::BinApp(op, Box::new(lhs), Box::new(rhs), pos),
     )
@@ -459,6 +479,7 @@ fn multive_expr_from_pair(pair: Pair<Rule>) -> Result<Expr, ParseError> {
         HashMap::from_iter(IntoIter::new([
             (Rule::ast, BinOp::Mul as fn(PosInfo) -> BinOp),
             (Rule::slash, BinOp::Div),
+            (Rule::percent, BinOp::Surplus),
         ])),
         |op, lhs, rhs, pos| Expr::BinApp(op, Box::new(lhs), Box::new(rhs), pos),
     )

@@ -24,6 +24,7 @@ pub fn rule_to_str(rule: &Rule) -> &'static str {
         Rule::minus => "'-'",
         Rule::ast => "'*'",
         Rule::slash => "'/'",
+        Rule::percent => "'%'",
         Rule::or => "'|'",
         Rule::and => "'&'",
         Rule::equal => "'='",
@@ -37,6 +38,7 @@ pub fn rule_to_str(rule: &Rule) -> &'static str {
         Rule::comma => "','",
         Rule::bar => "'|'",
         Rule::arrow => "->",
+        Rule::fat_arrow => "=>",
 
         Rule::kw_ifz => "'ifz'",
         Rule::kw_else => "'else'",
