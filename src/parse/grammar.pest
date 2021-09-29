@@ -1,4 +1,4 @@
-program = { func+ }
+program = { func+ ~ EOI }
 
 func = { kw_rec? ~ kw_func ~ ident ~ refine_type* ~ colon ~ refine_type ~ paren_expr }
 

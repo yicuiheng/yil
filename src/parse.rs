@@ -74,6 +74,7 @@ fn program_from_pair(pair: Pair<Rule>) -> Result<Program, ParseError> {
         assert_eq!(func_pair.as_rule(), Rule::func);
         funcs.push(func_from_pair(func_pair)?);
     }
+
     Ok(Program {
         funcs: funcs,
         pos: pos,

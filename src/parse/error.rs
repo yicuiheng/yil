@@ -33,7 +33,7 @@ pub fn print_error(e: ParseError, src: &str) {
             for e in positives.iter().with_position() {
                 match e {
                     Position::First(p) | Position::Middle(p) => {
-                        msg.push_str(rule_to_str(p));
+                        msg.push_str(&format!("{}, ", rule_to_str(p)));
                     }
                     Position::Last(p) => {
                         msg.push_str(rule_to_str(p));
