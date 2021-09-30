@@ -25,7 +25,8 @@ fn main() {
         std::process::exit(-1);
     });
 
-    if let Err(typecheck::TypeError::Hoge(err)) = typecheck::check_program(program) {
-        eprintln!("{}", err)
+    if let Err(e) = typecheck::program(&program) {
+        eprintln!("{:?}", e);
+        std::process::exit(-1);
     }
 }

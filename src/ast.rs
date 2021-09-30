@@ -88,12 +88,6 @@ pub mod logic {
         BinApp(BinPred, Expr, Expr, PosInfo),
     }
 
-    impl Formula {
-        pub fn subst(self, _var: &Ident, _e: Expr) -> Formula {
-            todo!()
-        }
-    }
-
     #[derive(Debug, PartialEq, Eq, Clone)]
     pub enum BinOp {
         Add(PosInfo),
@@ -108,12 +102,6 @@ pub mod logic {
         Var(Ident),
         Constant(Constant),
         BinApp(BinOp, Box<Expr>, Box<Expr>, PosInfo),
-    }
-
-    impl Expr {
-        pub fn subst(self, _var: Ident, _e: Expr) -> Self {
-            todo!()
-        }
     }
 }
 
