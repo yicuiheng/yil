@@ -34,10 +34,19 @@ impl PosInfo {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ident {
     pub name: String,
     pub pos: PosInfo,
+}
+
+impl std::hash::Hash for Ident {
+    fn hash<H>(&self, state: &mut H)
+    where
+        H: std::hash::Hasher,
+    {
+        self.name.hash(state)
+    }
 }
 
 static FRESH_IDENT_COUNT: AtomicUsize = AtomicUsize::new(0);
