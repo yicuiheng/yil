@@ -4,6 +4,7 @@ extern crate pest_derive;
 
 mod ast;
 mod parse;
+mod smt;
 mod typecheck;
 
 use clap::{AppSettings, Clap};
