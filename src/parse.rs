@@ -71,6 +71,9 @@ fn program_from_pair(pair: Pair<Rule>) -> Result<Program, ParseError> {
     let mut funcs = vec![];
 
     while let Some(func_pair) = pairs.next() {
+        if func_pair.as_rule() == Rule::EOI {
+            break;
+        }
         assert_eq!(func_pair.as_rule(), Rule::func);
         funcs.push(func_from_pair(func_pair)?);
     }
