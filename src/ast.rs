@@ -34,11 +34,19 @@ impl PosInfo {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct Ident {
     pub name: String,
     pub pos: PosInfo,
 }
+
+impl PartialEq for Ident {
+    fn eq(&self, other: &Ident) -> bool {
+        self.name == other.name
+    }
+}
+
+impl Eq for Ident {}
 
 impl std::hash::Hash for Ident {
     fn hash<H>(&self, state: &mut H)
@@ -54,7 +62,7 @@ static FRESH_IDENT_COUNT: AtomicUsize = AtomicUsize::new(0);
 impl Ident {
     pub fn fresh() -> Self {
         Self {
-            name: format!("<fresh-{}>", FRESH_IDENT_COUNT.fetch_add(1, SeqCst)),
+            name: format!("_fresh.{}", FRESH_IDENT_COUNT.fetch_add(1, SeqCst)),
             pos: PosInfo::dummy(),
         }
     }
