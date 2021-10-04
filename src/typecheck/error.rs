@@ -1,16 +1,18 @@
 use crate::ast::*;
 use crate::smt::error::SmtError;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum TypeError {
     UnboundVariable(Ident),
-    SimpleTypeError {
+    BinAppSimpleTypeError {
+        op: BinOp,
         type1: Type,
         type2: Type,
         pos: PosInfo,
     },
     FuncAppError(FuncType, Vec<Expr>),
     FuncExpected(Type, PosInfo),
+    IfzCondMustBeInt(Expr),
     NotValidConstraint(logic::Formula),
     SmtError(SmtError),
 }

@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::fmt::Debug;
 use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 
@@ -48,6 +49,18 @@ impl PartialEq for Ident {
 
 impl Eq for Ident {}
 
+impl PartialOrd for Ident {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.name.partial_cmp(&other.name)
+    }
+}
+
+impl Ord for Ident {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.name.cmp(&other.name)
+    }
+}
+
 impl std::hash::Hash for Ident {
     fn hash<H>(&self, state: &mut H)
     where
@@ -65,6 +78,11 @@ impl Ident {
             name: format!("_fresh.{}", FRESH_IDENT_COUNT.fetch_add(1, SeqCst)),
             pos: PosInfo::dummy(),
         }
+    }
+
+    #[cfg(test)]
+    pub fn reset_fresh_count() {
+        FRESH_IDENT_COUNT.store(0, SeqCst)
     }
 
     #[cfg(test)]
@@ -271,7 +289,6 @@ pub struct Constant {
 }
 
 impl Constant {
-    #[cfg(test)]
     pub fn new(val: i64) -> Self {
         Self {
             val,
