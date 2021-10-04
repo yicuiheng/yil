@@ -1,0 +1,1 @@
+rec func hoge (x:int | x >= 0) : (y:int | y >= x + 3) (x + 2)

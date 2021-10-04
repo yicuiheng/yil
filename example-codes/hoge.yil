@@ -1,1 +1,1 @@
-rec func hoge (x: int | true): (y: int | true) ( x )
+rec func hoge (x: int | x >= 10 ): (y: int | y >= 3) ( x )

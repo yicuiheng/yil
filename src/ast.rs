@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::fmt::Debug;
 use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 
@@ -34,10 +35,39 @@ impl PosInfo {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone)]
 pub struct Ident {
     pub name: String,
     pub pos: PosInfo,
+}
+
+impl PartialEq for Ident {
+    fn eq(&self, other: &Ident) -> bool {
+        self.name == other.name
+    }
+}
+
+impl Eq for Ident {}
+
+impl PartialOrd for Ident {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.name.partial_cmp(&other.name)
+    }
+}
+
+impl Ord for Ident {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.name.cmp(&other.name)
+    }
+}
+
+impl std::hash::Hash for Ident {
+    fn hash<H>(&self, state: &mut H)
+    where
+        H: std::hash::Hasher,
+    {
+        self.name.hash(state)
+    }
 }
 
 static FRESH_IDENT_COUNT: AtomicUsize = AtomicUsize::new(0);
@@ -45,9 +75,14 @@ static FRESH_IDENT_COUNT: AtomicUsize = AtomicUsize::new(0);
 impl Ident {
     pub fn fresh() -> Self {
         Self {
-            name: format!("<fresh-{}>", FRESH_IDENT_COUNT.fetch_add(1, SeqCst)),
+            name: format!("_fresh.{}", FRESH_IDENT_COUNT.fetch_add(1, SeqCst)),
             pos: PosInfo::dummy(),
         }
+    }
+
+    #[cfg(test)]
+    pub fn reset_fresh_count() {
+        FRESH_IDENT_COUNT.store(0, SeqCst)
     }
 
     #[cfg(test)]
@@ -77,6 +112,7 @@ pub mod logic {
         Geq(PosInfo),
     }
 
+    // TODO: subst や free_vars のパフォーマンスが明らかに悪いのでデータの持ち方を改善する
     #[derive(Debug, PartialEq, Eq, Clone)]
     pub enum Formula {
         True(PosInfo),
@@ -86,6 +122,57 @@ pub mod logic {
         Or(Box<Formula>, Box<Formula>, PosInfo),
         Imply(Box<Formula>, Box<Formula>, PosInfo),
         BinApp(BinPred, Expr, Expr, PosInfo),
+    }
+
+    impl Formula {
+        pub fn subst(&self, var: &Ident, e: Expr) -> Formula {
+            use Formula::*;
+            match self {
+                True(_) | False(_) => self.clone(),
+                Not(f, pos) => Not(Box::new(f.subst(var, e)), pos.clone()),
+                And(f1, f2, pos) => And(
+                    Box::new(f1.subst(var, e.clone())),
+                    Box::new(f2.subst(var, e.clone())),
+                    pos.clone(),
+                ),
+                Or(f1, f2, pos) => Or(
+                    Box::new(f1.subst(var, e.clone())),
+                    Box::new(f2.subst(var, e.clone())),
+                    pos.clone(),
+                ),
+                Imply(f1, f2, pos) => Imply(
+                    Box::new(f1.subst(var, e.clone())),
+                    Box::new(f2.subst(var, e.clone())),
+                    pos.clone(),
+                ),
+                BinApp(op, e1, e2, pos) => BinApp(
+                    op.clone(),
+                    e1.subst(var, e.clone()),
+                    e2.subst(var, e),
+                    pos.clone(),
+                ),
+            }
+        }
+
+        pub fn free_vars(&self) -> Vec<Ident> {
+            use Formula::*;
+            match self {
+                True(_) | False(_) => vec![],
+                Not(f, _) => f.free_vars(),
+                And(f1, f2, _) | Or(f1, f2, _) | Imply(f1, f2, _) => {
+                    let mut result = vec![];
+                    result.append(&mut f1.free_vars());
+                    result.append(&mut f2.free_vars());
+                    result
+                }
+                BinApp(_, e1, e2, _) => {
+                    let mut result = vec![];
+                    result.append(&mut e1.free_vars());
+                    result.append(&mut e2.free_vars());
+                    result
+                }
+            }
+        }
     }
 
     #[derive(Debug, PartialEq, Eq, Clone)]
@@ -102,6 +189,37 @@ pub mod logic {
         Var(Ident),
         Constant(Constant),
         BinApp(BinOp, Box<Expr>, Box<Expr>, PosInfo),
+    }
+
+    impl Expr {
+        pub fn subst(&self, var: &Ident, e: Expr) -> Expr {
+            use self::Expr::*;
+            match self {
+                Var(ident) if var == ident => e,
+                Var(ident) => Var(ident.clone()),
+                Constant(c) => Constant(c.clone()),
+                BinApp(op, e1, e2, pos) => BinApp(
+                    op.clone(),
+                    Box::new(e1.subst(var, e.clone())),
+                    Box::new(e2.subst(var, e)),
+                    pos.clone(),
+                ),
+            }
+        }
+
+        pub fn free_vars(&self) -> Vec<Ident> {
+            use self::Expr::*;
+            match self {
+                Var(ident) => vec![ident.clone()],
+                Constant(_) => vec![],
+                BinApp(_, e1, e2, _) => {
+                    let mut result = vec![];
+                    result.append(&mut e1.free_vars());
+                    result.append(&mut e2.free_vars());
+                    result
+                }
+            }
+        }
     }
 }
 
@@ -132,6 +250,28 @@ pub enum Type {
     NonFuncType(NonFuncType),
 }
 
+impl Type {
+    pub fn subst_logical_expr(self, ident: &Ident, e: logic::Expr) -> Type {
+        match self {
+            Type::FuncType(FuncType { .. }) => {
+                // 現状，これを使う例がないので必要になったときに実装する
+                todo!()
+            }
+            Type::NonFuncType(NonFuncType {
+                param_name,
+                base_type,
+                formula,
+                pos,
+            }) => Type::NonFuncType(NonFuncType {
+                param_name,
+                base_type,
+                formula: formula.subst(ident, e),
+                pos,
+            }),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct Func {
     pub name: Ident,
@@ -149,7 +289,6 @@ pub struct Constant {
 }
 
 impl Constant {
-    #[cfg(test)]
     pub fn new(val: i64) -> Self {
         Self {
             val,
@@ -158,7 +297,7 @@ impl Constant {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BinOp {
     Or(PosInfo),
     And(PosInfo),
@@ -175,7 +314,7 @@ pub enum BinOp {
     Surplus(PosInfo),
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expr {
     Constant(Constant),
     Var(Ident),
