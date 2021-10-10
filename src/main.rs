@@ -3,9 +3,10 @@ extern crate pest;
 extern crate pest_derive;
 
 mod ast;
+mod env;
 mod parse;
-mod smt;
-mod typecheck;
+// mod smt;
+// mod typecheck;
 
 use clap::{AppSettings, Clap};
 
@@ -25,9 +26,9 @@ fn main() {
         parse::print_error(e, src.as_str());
         std::process::exit(-1);
     });
-
+    /*
     if let Err(e) = typecheck::program(&program) {
         eprintln!("{:?}", e);
         std::process::exit(-1);
-    }
+    } */
 }

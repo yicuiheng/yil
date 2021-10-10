@@ -5,6 +5,7 @@ pub fn rule_to_str(rule: &Rule) -> &'static str {
         Rule::program => "program",
         Rule::func => "function",
         Rule::refine_type => "refinement type",
+        Rule::primary_refine_type => "primary refinement type",
         Rule::formula => "logical formula",
         Rule::primary_logical_expr => "logical primary expression",
         Rule::base_type => "base type",
@@ -25,11 +26,11 @@ pub fn rule_to_str(rule: &Rule) -> &'static str {
         Rule::ast => "'*'",
         Rule::slash => "'/'",
         Rule::percent => "'%'",
-        Rule::or => "'|'",
-        Rule::and => "'&'",
+        Rule::or => "'||'",
+        Rule::and => "'&&'",
         Rule::equal => "'='",
-        Rule::eq => "'='",
-        Rule::neq => "'<>'",
+        Rule::eq => "'=='",
+        Rule::neq => "'!='",
         Rule::lt => "'<'",
         Rule::leq => "'<='",
         Rule::gt => "'>'",
@@ -50,7 +51,10 @@ pub fn rule_to_str(rule: &Rule) -> &'static str {
         Rule::kw_true => "'true'",
         Rule::kw_false => "'false'",
 
-        _ => unreachable!(),
+        r => {
+            eprintln!("{:?}", r);
+            unreachable!()
+        }
     }
 }
 
@@ -67,12 +71,21 @@ pub fn line_of<'a>(src: &'a str, mut line_num: usize) -> String {
             line_num -= 1;
         }
     }
-    unreachable!()
+    line
 }
 
-pub fn span_to_pos_info(span: &pest::Span) -> PosInfo {
-    PosInfo {
-        start: span.start(),
-        end: span.end(),
-    }
+use pest::iterators::Pair;
+pub fn pair_to_info<R: pest::RuleType>(pair: &Pair<R>) -> Info {
+    let (start_line, start_col) = pair.as_span().start_pos().line_col();
+    let (end_line, end_col) = pair.as_span().end_pos().line_col();
+    Info::Range(
+        Pos {
+            line: start_line,
+            col: start_col,
+        },
+        Pos {
+            line: end_line,
+            col: end_col,
+        },
+    )
 }

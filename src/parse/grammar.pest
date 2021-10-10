@@ -1,6 +1,6 @@
 program = { func+ ~ EOI }
 
-func = { kw_rec? ~ kw_func ~ ident ~ refine_type* ~ colon ~ refine_type ~ paren_expr }
+func = { kw_rec? ~ kw_func ~ ident ~ refine_type+ ~ colon ~ refine_type ~ paren_expr }
 
 refine_type = { primary_refine_type ~ (arrow ~ primary_refine_type)* }
 primary_refine_type = {
