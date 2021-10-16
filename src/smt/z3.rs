@@ -1,9 +1,7 @@
-use super::{error::SmtError, smtlib2};
-use crate::ast::Ident;
+use super::error::SmtError;
 
-pub fn check_unsat(sexpr: lexpr::Value, free_vars: Vec<Ident>) -> Result<bool, SmtError> {
+pub fn check_unsat(query: String) -> Result<bool, SmtError> {
     use std::io::Write;
-    let query = smtlib2::make_smtlib2(sexpr, free_vars);
 
     let mut temp = tempfile::Builder::new()
         .suffix(".smtlib2")

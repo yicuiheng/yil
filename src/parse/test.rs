@@ -2,10 +2,11 @@
 use std::collections::HashMap;
 
 #[cfg(test)]
-use crate::{ast::*, env::Env};
-
-#[cfg(test)]
-use super::{expr, expr_with_name_map, func, ident, program, typ};
+use crate::{
+    ast::*,
+    env::Env,
+    parse::{expr, expr_with_name_map, func, ident, program, typ},
+};
 
 #[test]
 fn parse_program_test() {
@@ -20,9 +21,8 @@ fn parse_program_test() {
             Program {
                 funcs: vec![
                     Func {
-                        ident: Ident { id: init_id },
                         typ: Type::FuncType(
-                            Ident { id: init_id + 2 },
+                            Ident { id: init_id },
                             Box::new(Type::IntType(
                                 Ident { id: init_id + 2 },
                                 logic::Term::True(Info::Dummy),
@@ -40,9 +40,8 @@ fn parse_program_test() {
                         info: Info::Dummy,
                     },
                     Func {
-                        ident: Ident { id: init_id + 1 },
                         typ: Type::FuncType(
-                            Ident { id: init_id + 4 },
+                            Ident { id: init_id + 1 },
                             Box::new(Type::IntType(
                                 Ident { id: init_id + 4 },
                                 logic::Term::False(Info::Dummy),
@@ -87,9 +86,8 @@ fn parse_func_test() {
         actual,
         (
             Func {
-                ident: Ident { id: init_id },
                 typ: Type::FuncType(
-                    Ident { id: init_id + 1 },
+                    Ident { id: init_id },
                     Box::new(Type::IntType(
                         Ident { id: init_id + 1 },
                         logic::Term::True(Info::Dummy),
@@ -123,16 +121,15 @@ fn parse_func_test() {
         actual,
         (
             Func {
-                ident: Ident { id: init_id },
                 typ: Type::FuncType(
-                    Ident { id: init_id + 1 },
+                    Ident { id: init_id },
                     Box::new(Type::IntType(
                         Ident { id: init_id + 1 },
                         logic::Term::True(Info::Dummy),
                         Info::Dummy
                     )),
                     Box::new(Type::FuncType(
-                        Ident { id: init_id + 2 },
+                        Ident { id: init_id + 4 },
                         Box::new(Type::IntType(
                             Ident { id: init_id + 2 },
                             logic::Term::True(Info::Dummy),
@@ -190,7 +187,7 @@ fn parse_type_test() {
         )
     );
 
-    let actual = typ("(x: int | true) -> (y: int | true)").unwrap();
+    let actual = typ("(f: (x: int | true) -> (y: int | true))").unwrap();
     Ident::set_fresh_count(init_id);
 
     assert_eq!(
@@ -199,27 +196,28 @@ fn parse_type_test() {
             Type::FuncType(
                 Ident { id: init_id },
                 Box::new(Type::IntType(
-                    Ident { id: init_id },
+                    Ident { id: init_id + 1 },
                     logic::Term::True(Info::Dummy),
                     Info::Dummy
                 )),
                 Box::new(Type::IntType(
-                    Ident { id: init_id + 1 },
+                    Ident { id: init_id + 2 },
                     logic::Term::True(Info::Dummy),
                     Info::Dummy
                 )),
                 Info::Dummy
             ),
             vec![
-                (Ident { id: init_id }, "x".to_string()),
-                (Ident { id: init_id + 1 }, "y".to_string()),
+                (Ident { id: init_id }, "f".to_string()),
+                (Ident { id: init_id + 1 }, "x".to_string()),
+                (Ident { id: init_id + 2 }, "y".to_string()),
             ]
             .into_iter()
             .collect()
         )
     );
 
-    let actual = typ("(x: int | true) -> (y: int | true) -> (z: int | true)").unwrap();
+    let actual = typ("(f: (x: int | true) -> (y: int | true) -> (z: int | true))").unwrap();
     Ident::set_fresh_count(init_id);
 
     assert_eq!(
@@ -228,19 +226,19 @@ fn parse_type_test() {
             Type::FuncType(
                 Ident { id: init_id },
                 Box::new(Type::IntType(
-                    Ident { id: init_id },
+                    Ident { id: init_id + 1 },
                     logic::Term::True(Info::Dummy),
                     Info::Dummy
                 )),
                 Box::new(Type::FuncType(
-                    Ident { id: init_id + 1 },
+                    Ident { id: init_id + 4 },
                     Box::new(Type::IntType(
-                        Ident { id: init_id + 1 },
+                        Ident { id: init_id + 2 },
                         logic::Term::True(Info::Dummy),
                         Info::Dummy
                     )),
                     Box::new(Type::IntType(
-                        Ident { id: init_id + 2 },
+                        Ident { id: init_id + 3 },
                         logic::Term::True(Info::Dummy),
                         Info::Dummy
                     )),
@@ -249,9 +247,10 @@ fn parse_type_test() {
                 Info::Dummy
             ),
             vec![
-                (Ident { id: init_id }, "x".to_string()),
-                (Ident { id: init_id + 1 }, "y".to_string()),
-                (Ident { id: init_id + 2 }, "z".to_string()),
+                (Ident { id: init_id }, "f".to_string()),
+                (Ident { id: init_id + 1 }, "x".to_string()),
+                (Ident { id: init_id + 2 }, "y".to_string()),
+                (Ident { id: init_id + 3 }, "z".to_string()),
             ]
             .into_iter()
             .collect()

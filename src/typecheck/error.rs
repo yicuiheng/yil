@@ -1,19 +1,15 @@
-use crate::ast::*;
-use crate::smt::error::SmtError;
+use crate::{ast::*, smt::error::SmtError};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum TypeError {
-    UnboundVariable(Ident),
-    BinAppSimpleTypeError {
-        op: BinOp,
+    IfzBranchSimpleTypeError {
         type1: Type,
         type2: Type,
-        pos: PosInfo,
+        info: Info,
     },
-    FuncAppError(FuncType, Vec<Expr>),
-    FuncExpected(Type, PosInfo),
+    FuncExpected(Type, Info),
     IfzCondMustBeInt(Expr),
-    NotValidConstraint(logic::Formula),
+    NotValidConstraint(logic::Term),
     SmtError(SmtError),
 }
 
@@ -21,4 +17,9 @@ impl From<SmtError> for TypeError {
     fn from(item: SmtError) -> Self {
         Self::SmtError(item)
     }
+}
+
+pub fn print_error(e: TypeError, _: &str) {
+    eprintln!("{:?}", e);
+    todo!()
 }

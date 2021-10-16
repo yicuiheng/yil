@@ -1,7 +1,4 @@
-use crate::ast::*;
-use crate::env::NameEnv;
-
-mod error;
+pub mod error;
 mod test;
 mod util;
 
@@ -12,7 +9,8 @@ use pest::{
 };
 use std::collections::HashMap;
 
-pub use error::{print_error, ParseError};
+use crate::{ast::*, env::NameEnv};
+use error::ParseError;
 use util::*;
 
 #[derive(Parser)]
@@ -36,12 +34,12 @@ pub fn func(str: &str) -> Result<(Func, NameEnv), ParseError> {
     let mut name_env = NameEnv::empty();
     let mut name_to_ident = HashMap::new();
 
-    let (func_name, is_rec, info, pairs) = func_former_part_from_pair(func_pair);
+    let (func_name, is_rec, info, pairs) = func_from_pair_step1(func_pair);
     let func_ident = Ident::fresh();
     name_env.insert(func_ident, func_name.clone());
     name_to_ident.insert(func_name, func_ident);
 
-    let (func, name_env_) = func_from_later_pairs(func_ident, is_rec, info, &name_to_ident, pairs)?;
+    let (func, name_env_) = func_from_pair_step2(func_ident, is_rec, info, &name_to_ident, pairs)?;
     name_env.append(name_env_);
     Ok((func, name_env))
 }
@@ -76,7 +74,7 @@ pub fn expr(str: &str) -> Result<(Expr, NameEnv), ParseError> {
 
 #[cfg(test)]
 pub fn ident(str: &str) -> Result<String, ParseError> {
-    let mut pairs = YilParser::parse(Rule::ident, str)?;
+    let mut pairs = YilParser::parse(Rule::name, str)?;
     let ident_pair = pairs.next().unwrap();
     assert_eq!(pairs.next(), None);
     Ok(ident_pair.as_str().to_string())
@@ -98,7 +96,7 @@ fn program_from_pair(pair: Pair<Rule>) -> Result<(Program, NameEnv), ParseError>
         }
         assert_eq!(func_pair.as_rule(), Rule::func);
         // TODO: is_rec を反映させるか仕様から ommit する
-        let (func_name, is_rec, info, pairs) = func_former_part_from_pair(func_pair);
+        let (func_name, is_rec, info, pairs) = func_from_pair_step1(func_pair);
         let func_ident = Ident::fresh();
         name_env.insert(func_ident, func_name.clone());
         name_to_ident.insert(func_name, func_ident);
@@ -108,7 +106,7 @@ fn program_from_pair(pair: Pair<Rule>) -> Result<(Program, NameEnv), ParseError>
     let mut funcs = vec![];
     for (func_ident, is_rec, info, func_later_pairs) in func_later_pairss {
         let (func, name_env_) =
-            func_from_later_pairs(func_ident, is_rec, info, &name_to_ident, func_later_pairs)?;
+            func_from_pair_step2(func_ident, is_rec, info, &name_to_ident, func_later_pairs)?;
         name_env.append(name_env_);
         funcs.push(func);
     }
@@ -116,7 +114,7 @@ fn program_from_pair(pair: Pair<Rule>) -> Result<(Program, NameEnv), ParseError>
     Ok((Program { funcs, info }, name_env))
 }
 
-fn func_former_part_from_pair(pair: Pair<Rule>) -> (String, bool, Info, Pairs<Rule>) {
+fn func_from_pair_step1(pair: Pair<Rule>) -> (String, bool, Info, Pairs<Rule>) {
     assert_eq!(pair.as_rule(), Rule::func);
     let info = pair_to_info(&pair);
 
@@ -135,7 +133,7 @@ fn func_former_part_from_pair(pair: Pair<Rule>) -> (String, bool, Info, Pairs<Ru
     (func_name, is_rec, info, pairs)
 }
 
-fn func_from_later_pairs(
+fn func_from_pair_step2(
     func_ident: Ident,
     is_rec: bool,
     info: Info,
@@ -151,15 +149,12 @@ fn func_from_later_pairs(
         let param_type_info = pair_to_info(&pair);
         let (param_type, name_env_) = refine_type_from_pair(pair, &name_to_ident)?;
         name_env.append(name_env_);
-        let param_ident = if let Type::IntType(ident, _, _) = &param_type {
-            *ident
-        } else {
-            unreachable!()
-        };
+        let param_ident = param_type.ident();
         name_to_ident.insert(name_env.lookup(param_ident).clone(), param_ident);
         param_types.push((param_type, param_type_info));
         pair = pairs.next().unwrap();
     }
+    assert!(param_types.len() >= 1);
 
     assert_eq!(pair.as_rule(), Rule::colon);
 
@@ -168,12 +163,13 @@ fn func_from_later_pairs(
     let (ret, name_env_) = refine_type_from_pair(ret_pair, &name_to_ident)?;
     name_env.append(name_env_);
 
+    let first_param_ident = param_types[0].0.ident();
     let typ = param_types
         .into_iter()
         .rev()
         .fold(ret, |acc, (param_type, param_type_info)| {
-            let ident = if let Type::IntType(param_ident, _, _) = &param_type {
-                *param_ident
+            let ident = if param_type.ident() == first_param_ident {
+                func_ident
             } else {
                 Ident::fresh()
             };
@@ -190,7 +186,6 @@ fn func_from_later_pairs(
 
     Ok((
         Func {
-            ident: func_ident,
             typ,
             is_rec,
             body,
@@ -198,11 +193,6 @@ fn func_from_later_pairs(
         },
         name_env,
     ))
-}
-
-fn base_type_from_pair(pair: Pair<Rule>) -> Result<(), ParseError> {
-    assert_eq!(pair.as_rule(), Rule::base_type);
-    Ok(())
 }
 
 fn binop<T, BinOpT: Copy>(
@@ -237,75 +227,74 @@ fn binop<T, BinOpT: Copy>(
     Ok((acc, name_env))
 }
 
-fn formula_from_pair(
+fn term_from_pair(
     pair: Pair<Rule>,
     name_to_ident: &HashMap<String, Ident>,
 ) -> Result<(logic::Term, NameEnv), ParseError> {
     use std::array::IntoIter;
     use std::iter::FromIterator;
 
-    assert_eq!(pair.as_rule(), Rule::formula);
+    assert_eq!(pair.as_rule(), Rule::term);
     binop(
         pair.into_inner(),
         name_to_ident,
-        Rule::and_formula,
-        and_formula_from_pair,
+        Rule::and_term,
+        and_term_from_pair,
         HashMap::from_iter(IntoIter::new([(Rule::or, logic::BinOp::Or)])),
         logic::Term::Bin,
     )
 }
 
-fn and_formula_from_pair(
+fn and_term_from_pair(
     pair: Pair<Rule>,
     name_to_ident: &HashMap<String, Ident>,
 ) -> Result<(logic::Term, NameEnv), ParseError> {
     use std::array::IntoIter;
     use std::iter::FromIterator;
 
-    assert_eq!(pair.as_rule(), Rule::and_formula);
+    assert_eq!(pair.as_rule(), Rule::and_term);
     binop(
         pair.into_inner(),
         name_to_ident,
-        Rule::imply_formula,
-        imply_formula_from_pair,
+        Rule::imply_term,
+        imply_term_from_pair,
         HashMap::from_iter(IntoIter::new([(Rule::and, logic::BinOp::And)])),
         logic::Term::Bin,
     )
 }
 
-fn imply_formula_from_pair(
+fn imply_term_from_pair(
     pair: Pair<Rule>,
     name_to_ident: &HashMap<String, Ident>,
 ) -> Result<(logic::Term, NameEnv), ParseError> {
     use std::array::IntoIter;
     use std::iter::FromIterator;
 
-    assert_eq!(pair.as_rule(), Rule::imply_formula);
+    assert_eq!(pair.as_rule(), Rule::imply_term);
     binop(
         pair.into_inner(),
         name_to_ident,
-        Rule::binop_formula,
-        binop_formula_from_pair,
+        Rule::binop_term,
+        binop_term_from_pair,
         HashMap::from_iter(IntoIter::new([(Rule::fat_arrow, logic::BinOp::Imply)])),
         logic::Term::Bin,
     )
 }
 
-fn binop_formula_from_pair(
+fn binop_term_from_pair(
     pair: Pair<Rule>,
     name_to_ident: &HashMap<String, Ident>,
 ) -> Result<(logic::Term, NameEnv), ParseError> {
-    assert_eq!(pair.as_rule(), Rule::binop_formula);
+    assert_eq!(pair.as_rule(), Rule::binop_term);
     let info = pair_to_info(&pair);
 
     let mut pairs = pair.into_inner();
     Ok(match pairs.peek().unwrap().as_rule() {
         Rule::kw_true => (logic::Term::True(info), NameEnv::empty()),
         Rule::kw_false => (logic::Term::False(info), NameEnv::empty()),
-        Rule::additive_logical_expr => {
+        Rule::additive_term => {
             let mut name_env = NameEnv::empty();
-            let (expr1, name_env_) =
-                additive_logical_expr_from_pair(pairs.next().unwrap(), name_to_ident)?;
+            let (expr1, name_env_) = additive_term_from_pair(pairs.next().unwrap(), name_to_ident)?;
             name_env.append(name_env_);
             let op_pair = pairs.next().unwrap();
             let op_info = pair_to_info(&op_pair);
@@ -318,8 +307,7 @@ fn binop_formula_from_pair(
                 Rule::geq => logic::BinOp::Geq,
                 _ => unreachable!(),
             };
-            let (expr2, name_env_) =
-                additive_logical_expr_from_pair(pairs.next().unwrap(), name_to_ident)?;
+            let (expr2, name_env_) = additive_term_from_pair(pairs.next().unwrap(), name_to_ident)?;
             name_env.append(name_env_);
             (
                 logic::Term::Bin(op, Box::new(expr1), Box::new(expr2), op_info),
@@ -328,27 +316,27 @@ fn binop_formula_from_pair(
         }
         Rule::left_paren => {
             assert_eq!(pairs.next().unwrap().as_rule(), Rule::left_paren);
-            let (formula, name_env) = formula_from_pair(pairs.next().unwrap(), name_to_ident)?;
+            let (term, name_env) = term_from_pair(pairs.next().unwrap(), name_to_ident)?;
             assert_eq!(pairs.next().unwrap().as_rule(), Rule::right_paren);
-            (formula, name_env)
+            (term, name_env)
         }
         _ => unreachable!(),
     })
 }
 
-fn additive_logical_expr_from_pair(
+fn additive_term_from_pair(
     pair: Pair<Rule>,
     name_to_ident: &HashMap<String, Ident>,
 ) -> Result<(logic::Term, NameEnv), ParseError> {
     use std::array::IntoIter;
     use std::iter::FromIterator;
-    assert_eq!(pair.as_rule(), Rule::additive_logical_expr);
+    assert_eq!(pair.as_rule(), Rule::additive_term);
 
     binop(
         pair.into_inner(),
         name_to_ident,
-        Rule::multive_logical_expr,
-        multive_logical_expr_from_pair,
+        Rule::multive_term,
+        multive_term_from_pair,
         HashMap::from_iter(IntoIter::new([
             (Rule::plus, logic::BinOp::Add),
             (Rule::minus, logic::BinOp::Sub),
@@ -357,19 +345,19 @@ fn additive_logical_expr_from_pair(
     )
 }
 
-fn multive_logical_expr_from_pair(
+fn multive_term_from_pair(
     pair: Pair<Rule>,
     name_to_ident: &HashMap<String, Ident>,
 ) -> Result<(logic::Term, NameEnv), ParseError> {
     use std::array::IntoIter;
     use std::iter::FromIterator;
-    assert_eq!(pair.as_rule(), Rule::multive_logical_expr);
+    assert_eq!(pair.as_rule(), Rule::multive_term);
 
     binop(
         pair.into_inner(),
         name_to_ident,
-        Rule::primary_logical_expr,
-        primary_logical_expr_from_pair,
+        Rule::primary_term,
+        primary_term_from_pair,
         HashMap::from_iter(IntoIter::new([
             (Rule::ast, logic::BinOp::Mult),
             (Rule::slash, logic::BinOp::Div),
@@ -379,17 +367,17 @@ fn multive_logical_expr_from_pair(
     )
 }
 
-fn primary_logical_expr_from_pair(
+fn primary_term_from_pair(
     pair: Pair<Rule>,
     name_to_ident: &HashMap<String, Ident>,
 ) -> Result<(logic::Term, NameEnv), ParseError> {
-    assert_eq!(pair.as_rule(), Rule::primary_logical_expr);
+    assert_eq!(pair.as_rule(), Rule::primary_term);
     let info = pair_to_info(&pair);
     let mut pairs = pair.into_inner();
 
     let pair = pairs.next().unwrap();
     match pair.as_rule() {
-        Rule::ident => {
+        Rule::name => {
             let (name, info) = name_from_pair(pair);
             let id = *name_to_ident.get(&name).unwrap();
             Ok((logic::Term::Var(id, info), NameEnv::empty()))
@@ -399,7 +387,7 @@ fn primary_logical_expr_from_pair(
             Ok((logic::Term::Num(n, info), NameEnv::empty()))
         }
         Rule::left_paren => {
-            let e = additive_logical_expr_from_pair(pairs.next().unwrap(), name_to_ident)?;
+            let e = additive_term_from_pair(pairs.next().unwrap(), name_to_ident)?;
             assert_eq!(pairs.next().unwrap().as_rule(), Rule::right_paren);
             Ok(e)
         }
@@ -414,84 +402,91 @@ fn refine_type_from_pair(
     assert_eq!(pair.as_rule(), Rule::refine_type);
     let mut pairs = pair.into_inner();
 
-    let mut name_env = NameEnv::empty();
-
-    let (mut ret_type, name_env_) =
-        primary_refine_type_from_pair(pairs.next().unwrap(), name_to_ident)?;
-    name_env.append(name_env_);
-    let mut param_types = vec![];
-
-    while let Some(pair) = pairs.next() {
-        assert_eq!(pair.as_rule(), Rule::arrow);
-        let pair = pairs.next().unwrap();
-        assert_eq!(pair.as_rule(), Rule::primary_refine_type);
-
-        let (typ, name_env_) = primary_refine_type_from_pair(pair, name_to_ident)?;
-        name_env.append(name_env_);
-        param_types.push(ret_type);
-        ret_type = typ;
-    }
-
-    Ok((
-        param_types
-            .into_iter()
-            .rev()
-            .fold(ret_type, |acc, param_type| {
-                let ident = if let Type::IntType(ident, _, _) = &param_type {
-                    *ident
-                } else {
-                    Ident::fresh()
-                };
-                Type::FuncType(ident, Box::new(param_type), Box::new(acc), Info::Dummy)
-            }),
-        name_env,
-    ))
-}
-
-fn primary_refine_type_from_pair(
-    pair: Pair<Rule>,
-    name_to_ident: &HashMap<String, Ident>,
-) -> Result<(Type, NameEnv), ParseError> {
-    assert_eq!(pair.as_rule(), Rule::primary_refine_type);
-    let mut pairs = pair.into_inner();
-    let pair = pairs.next().unwrap();
-
-    match pair.as_rule() {
-        Rule::refine_non_func_type => refine_non_func_type_from_pair(pair, name_to_ident),
+    match pairs.peek().unwrap().as_rule() {
+        Rule::int_refine_type => int_refine_type_from_pair(pairs.next().unwrap(), name_to_ident),
+        Rule::func_refine_type => func_refine_type_from_pair(pairs.next().unwrap(), name_to_ident),
         Rule::left_paren => {
-            let pair = pairs.next().unwrap();
-            assert_eq!(pair.as_rule(), Rule::refine_type);
-            let typ = refine_type_from_pair(pair, name_to_ident);
+            assert_eq!(pairs.next().unwrap().as_rule(), Rule::left_paren);
+            let (typ, name_env) = refine_type_from_pair(pairs.next().unwrap(), name_to_ident)?;
             assert_eq!(pairs.next().unwrap().as_rule(), Rule::right_paren);
-            typ
+            Ok((typ, name_env))
         }
         _ => unreachable!(),
     }
 }
 
-fn refine_non_func_type_from_pair(
+fn int_refine_type_from_pair(
     pair: Pair<Rule>,
     name_to_ident: &HashMap<String, Ident>,
 ) -> Result<(Type, NameEnv), ParseError> {
-    assert_eq!(pair.as_rule(), Rule::refine_non_func_type);
+    assert_eq!(pair.as_rule(), Rule::int_refine_type);
     let info = pair_to_info(&pair);
     let mut pairs = pair.into_inner();
 
-    let mut name_env = NameEnv::empty();
-    let mut name_to_ident = name_to_ident.clone();
-
     assert_eq!(pairs.next().unwrap().as_rule(), Rule::left_paren);
-    let (param_name, _) = name_from_pair(pairs.next().unwrap());
-    let param_ident = Ident::fresh();
-    name_env.insert(param_ident, param_name.clone());
-    name_to_ident.insert(param_name, param_ident);
+
+    let mut name_to_ident = name_to_ident.clone();
+    let mut name_env = NameEnv::empty();
+    let (name, _) = name_from_pair(pairs.next().unwrap());
+    let ident = Ident::fresh();
+    name_to_ident.insert(name.clone(), ident);
+    name_env.insert(ident, name);
+
     assert_eq!(pairs.next().unwrap().as_rule(), Rule::colon);
-    let () = base_type_from_pair(pairs.next().unwrap())?;
+    assert_eq!(pairs.next().unwrap().as_rule(), Rule::kw_int);
     assert_eq!(pairs.next().unwrap().as_rule(), Rule::bar);
-    let (formula, name_env_) = formula_from_pair(pairs.next().unwrap(), &name_to_ident)?;
+    let (term, name_env_) = term_from_pair(pairs.next().unwrap(), &name_to_ident)?;
     name_env.append(name_env_);
     assert_eq!(pairs.next().unwrap().as_rule(), Rule::right_paren);
-    Ok((Type::IntType(param_ident, formula, info), name_env))
+
+    Ok((Type::IntType(ident, term, info), name_env))
+}
+
+fn func_refine_type_from_pair(
+    pair: Pair<Rule>,
+    name_to_ident: &HashMap<String, Ident>,
+) -> Result<(Type, NameEnv), ParseError> {
+    assert_eq!(pair.as_rule(), Rule::func_refine_type);
+    let mut pairs = pair.into_inner();
+
+    assert_eq!(pairs.next().unwrap().as_rule(), Rule::left_paren);
+
+    let mut name_to_ident = name_to_ident.clone();
+    let mut name_env = NameEnv::empty();
+    let (func_name, _) = name_from_pair(pairs.next().unwrap());
+    let func_ident = Ident::fresh();
+    name_to_ident.insert(func_name.clone(), func_ident);
+    name_env.insert(func_ident, func_name);
+
+    let mut types = vec![];
+    assert_eq!(pairs.next().unwrap().as_rule(), Rule::colon);
+    let (typ, name_env_) = refine_type_from_pair(pairs.next().unwrap(), &name_to_ident)?;
+    name_env.append(name_env_);
+    types.push(typ);
+
+    while pairs.peek().unwrap().as_rule() == Rule::arrow {
+        assert_eq!(pairs.next().unwrap().as_rule(), Rule::arrow);
+        let (typ, name_env_) = refine_type_from_pair(pairs.next().unwrap(), &name_to_ident)?;
+        name_env.append(name_env_);
+        types.push(typ);
+    }
+    assert_eq!(pairs.next().unwrap().as_rule(), Rule::right_paren);
+
+    let first_param_ident = types[0].ident();
+
+    let typ = types
+        .into_iter()
+        .rev()
+        .reduce(|acc, typ| {
+            if typ.ident() == first_param_ident {
+                Type::FuncType(func_ident, Box::new(typ), Box::new(acc), Info::Dummy)
+            } else {
+                Type::FuncType(Ident::fresh(), Box::new(typ), Box::new(acc), Info::Dummy)
+            }
+        })
+        .unwrap();
+
+    Ok((typ, name_env))
 }
 
 fn expr_from_pair(
@@ -524,7 +519,7 @@ fn let_expr_from_pair(
     assert_eq!(pairs_iter.next().unwrap().as_rule(), Rule::kw_let);
 
     let ident_pair = pairs_iter.next().unwrap();
-    assert_eq!(ident_pair.as_rule(), Rule::ident);
+    assert_eq!(ident_pair.as_rule(), Rule::name);
     let (name, _) = name_from_pair(ident_pair);
     let ident = Ident::fresh();
     name_env.insert(ident, name.clone());
@@ -728,7 +723,7 @@ fn apply_expr_from_pair(
 
     if head_pair.as_rule() == Rule::primary_expr {
         primary_expr_from_pair(head_pair, name_to_ident)
-    } else if head_pair.as_rule() == Rule::ident {
+    } else if head_pair.as_rule() == Rule::name {
         let mut name_env = NameEnv::empty();
 
         let (func_name, func_info) = name_from_pair(head_pair);
@@ -833,9 +828,11 @@ fn variable_from_pair(
     assert_eq!(pair.as_rule(), Rule::variable);
     let mut pairs = pair.into_inner();
     let pair = pairs.next().unwrap();
-    assert_eq!(pair.as_rule(), Rule::ident);
+    assert_eq!(pair.as_rule(), Rule::name);
     let (name, info) = name_from_pair(pair);
-    let ident = *name_to_ident.get(&name).unwrap();
+    let ident = *name_to_ident
+        .get(&name)
+        .ok_or_else(|| ParseError::UnboundVariable(name, info))?;
     Ok((Expr::Var(ident, info), NameEnv::empty()))
 }
 
@@ -852,6 +849,6 @@ fn paren_expr_from_pair(
 }
 
 fn name_from_pair(pair: Pair<Rule>) -> (String, Info) {
-    assert_eq!(pair.as_rule(), Rule::ident);
+    assert_eq!(pair.as_rule(), Rule::name);
     (pair.as_str().to_string(), pair_to_info(&pair))
 }

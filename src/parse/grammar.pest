@@ -1,43 +1,42 @@
 program = { func+ ~ EOI }
 
-func = { kw_rec? ~ kw_func ~ ident ~ refine_type+ ~ colon ~ refine_type ~ paren_expr }
+func = { kw_rec? ~ kw_func ~ name ~ refine_type+ ~ colon ~ refine_type ~ paren_expr }
 
-refine_type = { primary_refine_type ~ (arrow ~ primary_refine_type)* }
-primary_refine_type = {
-    refine_non_func_type |
-    left_paren ~ refine_type ~ right_paren}
+refine_type = {
+    int_refine_type |
+    func_refine_type |
+    left_paren ~ refine_type ~ right_paren }
 
-refine_non_func_type = { left_paren ~ ident ~ colon ~ base_type ~ bar ~ formula ~ right_paren }
+int_refine_type = { left_paren ~ name ~ colon ~ kw_int ~ bar ~ term ~ right_paren }
+func_refine_type = { left_paren ~ name ~ colon ~ refine_type ~ (arrow ~ refine_type)+ ~ right_paren }
 
-formula = { and_formula ~ (or ~ and_formula)* }
-and_formula = { imply_formula ~ (and ~ imply_formula)* }
-imply_formula = { binop_formula ~ (fat_arrow ~ binop_formula)* }
-binop_formula = {
+term = { and_term ~ (or ~ and_term)* }
+and_term = { imply_term ~ (and ~ imply_term)* }
+imply_term = { binop_term ~ (fat_arrow ~ binop_term)* }
+binop_term = {
     kw_true | kw_false |
-    (additive_logical_expr ~ (eq | neq | leq | lt | geq | gt) ~ additive_logical_expr) |
-    (left_paren ~ formula ~ right_paren) }
-additive_logical_expr = { multive_logical_expr ~ ((plus | minus) ~ multive_logical_expr)* }
-multive_logical_expr = { primary_logical_expr ~ ((ast | slash | percent) ~ primary_logical_expr)* }
-primary_logical_expr = { ident | constant | left_paren ~ additive_logical_expr ~ right_paren }
-
-base_type = { kw_int }
+    (additive_term ~ (eq | neq | leq | lt | geq | gt) ~ additive_term) |
+    (left_paren ~ term ~ right_paren) }
+additive_term = { multive_term ~ ((plus | minus) ~ multive_term)* }
+multive_term = { primary_term ~ ((ast | slash | percent) ~ primary_term)* }
+primary_term = { name | constant | left_paren ~ additive_term ~ right_paren }
 
 expr = {
     let_expr |
     or_expr }
 
-let_expr = { kw_let ~ ident ~ equal ~ expr ~ kw_in ~ expr }
+let_expr = { kw_let ~ name ~ equal ~ expr ~ kw_in ~ expr }
 
 or_expr = { and_expr ~ (or ~ and_expr)* }
 and_expr = { comp_expr ~ (and ~ comp_expr)* }
-comp_expr = { additive_expr ~ ((eq | neq | lt | leq | gt | geq) ~ additive_expr)* }
+comp_expr = { additive_expr ~ ((eq | neq | leq | lt | geq | gt) ~ additive_expr)* }
 
 additive_expr = { multive_expr ~ ((plus | minus) ~ multive_expr)* }
 multive_expr = { apply_expr ~ ((ast | slash | percent) ~ apply_expr)* }
 
 apply_expr = {
-    (ident ~ left_paren ~ right_paren) |
-    (ident ~ left_paren ~ expr ~ (comma ~ expr)* ~ right_paren) |
+    (name ~ left_paren ~ right_paren) |
+    (name ~ left_paren ~ expr ~ (comma ~ expr)* ~ right_paren) |
     primary_expr }
 
 primary_expr = {
@@ -49,7 +48,7 @@ primary_expr = {
 
 ifz_expr = { kw_ifz ~ expr ~ left_brace ~ expr ~ right_brace ~ kw_else ~ left_brace ~ expr ~ right_brace }
 constant = @{ minus? ~ digit+ }
-variable = { ident }
+variable = { name }
 paren_expr = { left_paren ~ expr ~ right_paren }
 
 left_paren = { "(" }
@@ -91,9 +90,9 @@ keyword = { kw_ifz | kw_else | kw_let | kw_in | kw_rec | kw_func | kw_int | kw_t
 alpha = {'a'..'z' | 'A'..'Z'}
 digit = {'0'..'9'}
 
-ident_tail = { alpha | digit | "_" }
+name_tail = { alpha | digit | "_" }
 
-ident = @{ !keyword ~ alpha ~ ident_tail* }
+name = @{ !keyword ~ alpha ~ name_tail* }
 
 WHITESPACE = _{ " " | "\t" | "\n" }
 

@@ -5,17 +5,16 @@ pub fn rule_to_str(rule: &Rule) -> &'static str {
         Rule::program => "program",
         Rule::func => "function",
         Rule::refine_type => "refinement type",
-        Rule::primary_refine_type => "primary refinement type",
-        Rule::formula => "logical formula",
-        Rule::primary_logical_expr => "logical primary expression",
-        Rule::base_type => "base type",
+        Rule::term => "logical term",
+        Rule::primary_term => "logical primary term",
         Rule::expr => "expression",
         Rule::ifz_expr => "if-expression",
         Rule::let_expr => "let-expression",
+        Rule::apply_expr => "func-apply-expression",
         Rule::constant => "constant",
         Rule::variable => "variable",
         Rule::paren_expr => "parened-expression",
-        Rule::ident => "identifier",
+        Rule::name => "identifier",
 
         Rule::left_paren => "'('",
         Rule::right_paren => "')'",
@@ -51,10 +50,7 @@ pub fn rule_to_str(rule: &Rule) -> &'static str {
         Rule::kw_true => "'true'",
         Rule::kw_false => "'false'",
 
-        r => {
-            eprintln!("{:?}", r);
-            unreachable!()
-        }
+        _ => unreachable!(),
     }
 }
 

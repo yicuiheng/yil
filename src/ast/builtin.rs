@@ -1,6 +1,9 @@
 use once_cell::sync::OnceCell;
 
-use super::*;
+use crate::{
+    ast::{logic::*, *},
+    env::TypeEnv,
+};
 
 static INSTANCE: OnceCell<BuiltinData> = OnceCell::new();
 
@@ -18,6 +21,29 @@ pub struct BuiltinData {
     pub mult_ident: Ident,
     pub div_ident: Ident,
     pub rem_ident: Ident,
+}
+
+impl std::iter::IntoIterator for &BuiltinData {
+    type Item = Ident;
+    type IntoIter = std::vec::IntoIter<Ident>;
+    fn into_iter(self) -> Self::IntoIter {
+        vec![
+            self.or_ident,
+            self.and_ident,
+            self.eq_ident,
+            self.neq_ident,
+            self.lt_ident,
+            self.leq_ident,
+            self.gt_ident,
+            self.geq_ident,
+            self.add_ident,
+            self.sub_ident,
+            self.mult_ident,
+            self.div_ident,
+            self.rem_ident,
+        ]
+        .into_iter()
+    }
 }
 
 impl BuiltinData {
@@ -71,8 +97,185 @@ impl BuiltinData {
             None
         }
     }
-
-    pub fn type_of(&self, ident: Ident) -> &Type {
-        todo!()
+    pub fn type_env() -> TypeEnv {
+        let builtin = BuiltinData::instance();
+        let mut type_env = TypeEnv::empty();
+        for ident in builtin.into_iter() {
+            type_env.insert(ident, type_of(ident).unwrap());
+        }
+        type_env
     }
+}
+
+fn type_of(ident: Ident) -> Option<Type> {
+    let inst = BuiltinData::instance();
+    let arg1_ident = Ident::fresh();
+    let arg2_ident = Ident::fresh();
+    let ret_ident = Ident::fresh();
+
+    let make_logical = |op: BinOp| {
+        Term::Bin(
+            BinOp::And,
+            Box::new(Term::Bin(
+                BinOp::Imply,
+                Box::new(Term::Bin(
+                    op,
+                    Box::new(Term::Bin(
+                        BinOp::Eq,
+                        Box::new(Term::Var(arg1_ident, Info::Dummy)),
+                        Box::new(Term::Num(0, Info::Dummy)),
+                        Info::Dummy,
+                    )),
+                    Box::new(Term::Bin(
+                        BinOp::Eq,
+                        Box::new(Term::Var(arg2_ident, Info::Dummy)),
+                        Box::new(Term::Num(0, Info::Dummy)),
+                        Info::Dummy,
+                    )),
+                    Info::Dummy,
+                )),
+                Box::new(Term::Bin(
+                    BinOp::Eq,
+                    Box::new(Term::Var(ret_ident, Info::Dummy)),
+                    Box::new(Term::Num(0, Info::Dummy)),
+                    Info::Dummy,
+                )),
+                Info::Dummy,
+            )),
+            Box::new(Term::Bin(
+                BinOp::Imply,
+                Box::new(Term::Not(
+                    Box::new(Term::Bin(
+                        op,
+                        Box::new(Term::Bin(
+                            BinOp::Eq,
+                            Box::new(Term::Var(arg1_ident, Info::Dummy)),
+                            Box::new(Term::Num(0, Info::Dummy)),
+                            Info::Dummy,
+                        )),
+                        Box::new(Term::Bin(
+                            BinOp::Eq,
+                            Box::new(Term::Var(arg2_ident, Info::Dummy)),
+                            Box::new(Term::Num(0, Info::Dummy)),
+                            Info::Dummy,
+                        )),
+                        Info::Dummy,
+                    )),
+                    Info::Dummy,
+                )),
+                Box::new(Term::Bin(
+                    BinOp::Eq,
+                    Box::new(Term::Var(ret_ident, Info::Dummy)),
+                    Box::new(Term::Num(1, Info::Dummy)),
+                    Info::Dummy,
+                )),
+                Info::Dummy,
+            )),
+            Info::Dummy,
+        )
+    };
+    let make_pred = |op: BinOp| {
+        Term::Bin(
+            BinOp::And,
+            Box::new(Term::Bin(
+                BinOp::Imply,
+                Box::new(Term::Bin(
+                    op,
+                    Box::new(Term::Var(arg1_ident, Info::Dummy)),
+                    Box::new(Term::Var(arg2_ident, Info::Dummy)),
+                    Info::Dummy,
+                )),
+                Box::new(Term::Bin(
+                    BinOp::Eq,
+                    Box::new(Term::Var(ret_ident, Info::Dummy)),
+                    Box::new(Term::Num(0, Info::Dummy)),
+                    Info::Dummy,
+                )),
+                Info::Dummy,
+            )),
+            Box::new(Term::Bin(
+                BinOp::Imply,
+                Box::new(Term::Not(
+                    Box::new(Term::Bin(
+                        op,
+                        Box::new(Term::Var(arg1_ident, Info::Dummy)),
+                        Box::new(Term::Var(arg2_ident, Info::Dummy)),
+                        Info::Dummy,
+                    )),
+                    Info::Dummy,
+                )),
+                Box::new(Term::Bin(
+                    BinOp::Eq,
+                    Box::new(Term::Var(ret_ident, Info::Dummy)),
+                    Box::new(Term::Num(1, Info::Dummy)),
+                    Info::Dummy,
+                )),
+                Info::Dummy,
+            )),
+            Info::Dummy,
+        )
+    };
+    let make_arithmeric = |op: BinOp| -> Term {
+        Term::Bin(
+            BinOp::Eq,
+            Box::new(Term::Var(ret_ident, Info::Dummy)),
+            Box::new(Term::Bin(
+                op,
+                Box::new(Term::Var(arg1_ident, Info::Dummy)),
+                Box::new(Term::Var(arg2_ident, Info::Dummy)),
+                Info::Dummy,
+            )),
+            Info::Dummy,
+        )
+    };
+
+    let ret_term: Term = if inst.or_ident == ident {
+        make_logical(BinOp::Or)
+    } else if inst.and_ident == ident {
+        make_logical(BinOp::And)
+    } else if inst.eq_ident == ident {
+        make_pred(BinOp::Eq)
+    } else if inst.neq_ident == ident {
+        make_pred(BinOp::Neq)
+    } else if inst.lt_ident == ident {
+        make_pred(BinOp::Lt)
+    } else if inst.leq_ident == ident {
+        make_pred(BinOp::Leq)
+    } else if inst.gt_ident == ident {
+        make_pred(BinOp::Gt)
+    } else if inst.geq_ident == ident {
+        make_pred(BinOp::Geq)
+    } else if inst.add_ident == ident {
+        make_arithmeric(BinOp::Add)
+    } else if inst.sub_ident == ident {
+        make_arithmeric(BinOp::Sub)
+    } else if inst.mult_ident == ident {
+        make_arithmeric(BinOp::Mult)
+    } else if inst.div_ident == ident {
+        make_arithmeric(BinOp::Div)
+    } else if inst.rem_ident == ident {
+        make_arithmeric(BinOp::Rem)
+    } else {
+        return None;
+    };
+
+    Some(Type::FuncType(
+        ident,
+        Box::new(Type::IntType(
+            arg1_ident,
+            Term::True(Info::Dummy),
+            Info::Dummy,
+        )),
+        Box::new(Type::FuncType(
+            arg2_ident,
+            Box::new(Type::IntType(
+                arg2_ident,
+                Term::True(Info::Dummy),
+                Info::Dummy,
+            )),
+            Box::new(Type::IntType(ret_ident, ret_term, Info::Dummy)),
+            Info::Dummy,
+        )),
+        Info::Dummy,
+    ))
 }

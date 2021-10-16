@@ -1,10 +1,12 @@
-use super::*;
 use itertools::Itertools;
 use pest::error;
+
+use super::*;
 
 #[derive(Debug)]
 pub enum ParseError {
     Pest(error::Error<Rule>),
+    UnboundVariable(String, Info),
 }
 
 impl From<error::Error<Rule>> for ParseError {
@@ -43,6 +45,24 @@ pub fn print_error(e: ParseError, src: &str) {
                     }
                 }
             }
+            eprintln!("{}", msg);
+            std::process::exit(-1);
+        }
+        ParseError::UnboundVariable(name, info) => {
+            let (line, col) = match info {
+                Info::Range(pos, _) => (pos.line, pos.col),
+                _ => unreachable!(),
+            };
+
+            let mut msg = format!("{}\n", line_of(src, line - 1));
+            msg.push_str(&format!(
+                "{}^^^\n",
+                std::iter::repeat(' ').take(col).collect::<String>()
+            ));
+            msg.push_str(&format!(
+                "unbound variable `{}` at line {}\n expeted : ",
+                name, line
+            ));
             eprintln!("{}", msg);
             std::process::exit(-1);
         }

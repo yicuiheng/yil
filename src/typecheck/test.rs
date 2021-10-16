@@ -1,102 +1,12 @@
 #[cfg(test)]
-use std::collections::HashMap;
+use crate::{
+    ast::{builtin::BuiltinData, logic::*, *},
+    env::TypeEnv,
+    typecheck::*,
+};
 
 #[cfg(test)]
-use crate::ast::*;
-
-#[cfg(test)]
-use super::*;
-
-#[test]
-fn preprocess_test() {
-    // preprocess(let x = y in y) = let x = y in y
-    let e1 = Expr::Let(
-        Ident::new("x"),
-        Box::new(Expr::Var(Ident::new("y"))),
-        Box::new(Expr::Var(Ident::new("y"))),
-        PosInfo::dummy(),
-    );
-    Ident::reset_fresh_count();
-    assert_eq!(e1, util::preprocess(e1.clone()));
-
-    // preprocess(f (1 + 2)) =
-    //   let fresh.2 =
-    //     let fresh.0 = 1 in
-    //     let fresh.1 = 2 in
-    //     fresh.0 + fresh.1
-    //   in
-    //   f fresh.2
-    let e2 = Expr::FuncApp(
-        Ident::new("f"),
-        vec![Expr::BinApp(
-            BinOp::Add(PosInfo::dummy()),
-            Box::new(Expr::Constant(Constant::new(1))),
-            Box::new(Expr::Constant(Constant::new(2))),
-            PosInfo::dummy(),
-        )],
-        PosInfo::dummy(),
-    );
-    let e2_expected = Expr::Let(
-        Ident::new("_fresh.2"),
-        Box::new(Expr::Let(
-            Ident::new("_fresh.0"),
-            Box::new(Expr::Constant(Constant::new(1))),
-            Box::new(Expr::Let(
-                Ident::new("_fresh.1"),
-                Box::new(Expr::Constant(Constant::new(2))),
-                Box::new(Expr::BinApp(
-                    BinOp::Add(PosInfo::dummy()),
-                    Box::new(Expr::Var(Ident::new("_fresh.0"))),
-                    Box::new(Expr::Var(Ident::new("_fresh.1"))),
-                    PosInfo::dummy(),
-                )),
-                PosInfo::dummy(),
-            )),
-            PosInfo::dummy(),
-        )),
-        Box::new(Expr::FuncApp(
-            Ident::new("f"),
-            vec![Expr::Var(Ident::new("_fresh.2"))],
-            PosInfo::dummy(),
-        )),
-        PosInfo::dummy(),
-    );
-    Ident::reset_fresh_count();
-    assert_eq!(util::preprocess(e2), e2_expected);
-}
-
-#[test]
-fn typecheck_program_success_test() {
-    Ident::reset_fresh_count();
-    assert_eq!(
-        program(&Program {
-            funcs: vec![Func {
-                name: Ident::new("f"),
-                params: vec![Type::NonFuncType(NonFuncType {
-                    param_name: Ident::new("x"),
-                    base_type: BaseType::Int(PosInfo::dummy()),
-                    formula: logic::Formula::True(PosInfo::dummy()),
-                    pos: PosInfo::dummy()
-                })],
-                ret: Type::NonFuncType(NonFuncType {
-                    param_name: Ident::new("y"),
-                    base_type: BaseType::Int(PosInfo::dummy()),
-                    formula: logic::Formula::True(PosInfo::dummy()),
-                    pos: PosInfo::dummy()
-                }),
-                is_rec: true,
-                body: Expr::Var(Ident::new("x")),
-                pos: PosInfo::dummy()
-            }],
-            pos: PosInfo::dummy(),
-        }),
-        Ok(())
-    );
-}
-
-#[cfg(test)]
-fn check_expr_type(e: Expr, typ: Type, type_env: &HashMap<Ident, Type>) {
-    Ident::reset_fresh_count();
+fn check_well_typed_expr(e: Expr, typ: Type, type_env: &TypeEnv) {
     let mut constraints = vec![];
     let (typ_, type_env) = typecheck_expr(&e, &type_env, &mut constraints).unwrap();
     constraints::add_subtype_constraint(&typ_, &typ, &type_env, &mut constraints);
@@ -104,51 +14,225 @@ fn check_expr_type(e: Expr, typ: Type, type_env: &HashMap<Ident, Type>) {
     assert_eq!(constraints::solve_constraints(constraints), Ok(()));
 }
 
+#[cfg(test)]
+fn check_ill_typed_expr(e: Expr, typ: Type, type_env: &TypeEnv) {
+    let mut constraints = vec![];
+    let (typ_, type_env) = typecheck_expr(&e, &type_env, &mut constraints).unwrap();
+    constraints::add_subtype_constraint(&typ_, &typ, &type_env, &mut constraints);
+
+    if let Ok(_) = constraints::solve_constraints(constraints) {
+        panic!()
+    }
+}
+
 #[test]
 fn typecheck_expr_test() {
-    let mut type_env = HashMap::new();
+    let builtin = BuiltinData::instance();
+    let mut type_env = BuiltinData::type_env();
+    let a_ident = Ident::fresh();
+    let init_id = Ident::current_count();
 
     // a: {a: int | a >= 0}
     type_env.insert(
-        Ident::new("a"),
-        Type::NonFuncType(NonFuncType {
-            param_name: Ident::new("a"),
-            base_type: BaseType::Int(PosInfo::dummy()),
-            formula: logic::Formula::BinApp(
-                logic::BinPred::Geq(PosInfo::dummy()),
-                logic::Expr::Var(Ident::new("a")),
-                logic::Expr::Constant(Constant::new(0)),
-                PosInfo::dummy(),
+        a_ident,
+        Type::IntType(
+            a_ident,
+            Term::Bin(
+                BinOp::Geq,
+                Box::new(Term::Var(a_ident, Info::Dummy)),
+                Box::new(Term::Num(0, Info::Dummy)),
+                Info::Dummy,
             ),
-            pos: PosInfo::dummy(),
-        }),
+            Info::Dummy,
+        ),
     );
 
-    Ident::reset_fresh_count();
-    // let b = a in b + 1 : {b: int | b >= 1}
-    check_expr_type(
-        util::preprocess(Expr::Let(
-            Ident::new("b"),
-            Box::new(Expr::Var(Ident::new("a"))),
-            Box::new(Expr::BinApp(
-                BinOp::Add(PosInfo::dummy()),
-                Box::new(Expr::Var(Ident::new("b"))),
-                Box::new(Expr::Constant(Constant::new(1))),
-                PosInfo::dummy(),
-            )),
-            PosInfo::dummy(),
-        )),
-        Type::NonFuncType(NonFuncType {
-            param_name: Ident::new("b"),
-            base_type: BaseType::Int(PosInfo::dummy()),
-            formula: logic::Formula::BinApp(
-                logic::BinPred::Geq(PosInfo::dummy()),
-                logic::Expr::Var(Ident::new("b")),
-                logic::Expr::Constant(Constant::new(1)),
-                PosInfo::dummy(),
+    // variable
+    check_well_typed_expr(
+        Expr::Var(a_ident, Info::Dummy),
+        Type::IntType(
+            a_ident,
+            Term::Bin(
+                BinOp::Geq,
+                Box::new(Term::Var(a_ident, Info::Dummy)),
+                Box::new(Term::Num(-1, Info::Dummy)),
+                Info::Dummy,
             ),
-            pos: PosInfo::dummy(),
-        }),
+            Info::Dummy,
+        ),
+        &type_env,
+    );
+
+    Ident::set_fresh_count(init_id);
+    let ret_ident = Ident::fresh();
+    // a + 1 : {ret: int | ret >= 1 }
+    check_well_typed_expr(
+        Expr::App(
+            Box::new(Expr::App(
+                Box::new(Expr::Var(builtin.add_ident, Info::Dummy)),
+                Box::new(Expr::Var(a_ident, Info::Dummy)),
+                Info::Dummy,
+            )),
+            Box::new(Expr::Num(1, Info::Dummy)),
+            Info::Dummy,
+        ),
+        Type::IntType(
+            ret_ident,
+            Term::Bin(
+                BinOp::Geq,
+                Box::new(Term::Var(ret_ident, Info::Dummy)),
+                Box::new(Term::Num(1, Info::Dummy)),
+                Info::Dummy,
+            ),
+            Info::Dummy,
+        ),
+        &type_env,
+    );
+
+    Ident::set_fresh_count(init_id);
+    let b_ident = Ident::fresh();
+    let ret_ident = Ident::fresh();
+    // let b = 41 in b + 1 : {ret: int | ret = 43}
+    check_well_typed_expr(
+        Expr::Let(
+            b_ident,
+            Box::new(Expr::Num(41, Info::Dummy)),
+            Box::new(Expr::App(
+                Box::new(Expr::App(
+                    Box::new(Expr::Var(builtin.add_ident, Info::Dummy)),
+                    Box::new(Expr::Var(b_ident, Info::Dummy)),
+                    Info::Dummy,
+                )),
+                Box::new(Expr::Num(1, Info::Dummy)),
+                Info::Dummy,
+            )),
+            Info::Dummy,
+        ),
+        Type::IntType(ret_ident, Term::True(Info::Dummy), Info::Dummy),
+        &type_env,
+    );
+
+    Ident::set_fresh_count(init_id);
+    // let b = a in b + 1 : {ret: int | ret >= 1}
+    let b_ident = Ident::fresh();
+    let ret_ident = Ident::fresh();
+    check_well_typed_expr(
+        Expr::Let(
+            b_ident,
+            Box::new(Expr::Var(a_ident, Info::Dummy)),
+            Box::new(Expr::App(
+                Box::new(Expr::App(
+                    Box::new(Expr::Var(builtin.add_ident, Info::Dummy)),
+                    Box::new(Expr::Var(b_ident, Info::Dummy)),
+                    Info::Dummy,
+                )),
+                Box::new(Expr::Num(1, Info::Dummy)),
+                Info::Dummy,
+            )),
+            Info::Dummy,
+        ),
+        Type::IntType(
+            ret_ident,
+            Term::Bin(
+                BinOp::Geq,
+                Box::new(Term::Var(ret_ident, Info::Dummy)),
+                Box::new(Term::Num(1, Info::Dummy)),
+                Info::Dummy,
+            ),
+            Info::Dummy,
+        ),
+        &type_env,
+    );
+
+    Ident::set_fresh_count(init_id);
+
+    let ret_ident = Ident::fresh();
+    // a + 2 : {ret: int | ret >= 3}
+    check_ill_typed_expr(
+        Expr::App(
+            Box::new(Expr::App(
+                Box::new(Expr::Var(builtin.add_ident, Info::Dummy)),
+                Box::new(Expr::Var(a_ident, Info::Dummy)),
+                Info::Dummy,
+            )),
+            Box::new(Expr::Num(2, Info::Dummy)),
+            Info::Dummy,
+        ),
+        Type::IntType(
+            ret_ident,
+            Term::Bin(
+                BinOp::Geq,
+                Box::new(Term::Var(ret_ident, Info::Dummy)),
+                Box::new(Term::Num(3, Info::Dummy)),
+                Info::Dummy,
+            ),
+            Info::Dummy,
+        ),
+        &type_env,
+    );
+
+    Ident::set_fresh_count(init_id);
+    let ret_ident = Ident::fresh();
+    // a + 2 : {ret: int | ret >= a + 3 }
+    check_ill_typed_expr(
+        Expr::App(
+            Box::new(Expr::App(
+                Box::new(Expr::Var(builtin.add_ident, Info::Dummy)),
+                Box::new(Expr::Var(a_ident, Info::Dummy)),
+                Info::Dummy,
+            )),
+            Box::new(Expr::Num(2, Info::Dummy)),
+            Info::Dummy,
+        ),
+        Type::IntType(
+            ret_ident,
+            Term::Bin(
+                BinOp::Geq,
+                Box::new(Term::Var(ret_ident, Info::Dummy)),
+                Box::new(Term::Bin(
+                    BinOp::Add,
+                    Box::new(Term::Var(a_ident, Info::Dummy)),
+                    Box::new(Term::Num(3, Info::Dummy)),
+                    Info::Dummy,
+                )),
+                Info::Dummy,
+            ),
+            Info::Dummy,
+        ),
+        &type_env,
+    );
+
+    Ident::set_fresh_count(init_id);
+    let ret_ident = Ident::fresh();
+    // (1 + 2) >= 3 : {ret: int | ret = 0}
+    check_well_typed_expr(
+        Expr::App(
+            Box::new(Expr::App(
+                Box::new(Expr::Var(builtin.geq_ident, Info::Dummy)),
+                Box::new(Expr::App(
+                    Box::new(Expr::App(
+                        Box::new(Expr::Var(builtin.add_ident, Info::Dummy)),
+                        Box::new(Expr::Num(2, Info::Dummy)),
+                        Info::Dummy,
+                    )),
+                    Box::new(Expr::Num(2, Info::Dummy)),
+                    Info::Dummy,
+                )),
+                Info::Dummy,
+            )),
+            Box::new(Expr::Num(3, Info::Dummy)),
+            Info::Dummy,
+        ),
+        Type::IntType(
+            ret_ident,
+            Term::Bin(
+                BinOp::Eq,
+                Box::new(Term::Var(ret_ident, Info::Dummy)),
+                Box::new(Term::Num(0, Info::Dummy)),
+                Info::Dummy,
+            ),
+            Info::Dummy,
+        ),
         &type_env,
     );
 }
