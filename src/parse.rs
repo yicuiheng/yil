@@ -59,9 +59,13 @@ pub fn expr_with_name_map(
     str: &str,
     name_to_ident: &HashMap<String, Ident>,
 ) -> Result<(Expr, NameEnv), ParseError> {
-    let mut pairs = YilParser::parse(Rule::expr, str)?;
-    let expr_pair = pairs.next().unwrap();
+    let mut pairs = YilParser::parse(Rule::expr_for_debug, str)?;
+    let expr_for_debug_pair = pairs.next().unwrap();
     assert_eq!(pairs.next(), None);
+    assert_eq!(expr_for_debug_pair.as_rule(), Rule::expr_for_debug);
+    let mut pairs = expr_for_debug_pair.into_inner();
+    let expr_pair = pairs.next().unwrap();
+    assert_eq!(pairs.next().unwrap().as_rule(), Rule::EOI);
     assert_eq!(expr_pair.as_rule(), Rule::expr);
 
     expr_from_pair(expr_pair, name_to_ident)
@@ -181,7 +185,9 @@ fn func_from_pair_step2(
             )
         });
 
-    let (body, name_env_) = paren_expr_from_pair(pairs.next().unwrap(), &name_to_ident)?;
+    assert_eq!(pairs.next().unwrap().as_rule(), Rule::equal);
+
+    let (body, name_env_) = expr_from_pair(pairs.next().unwrap(), &name_to_ident)?;
     name_env.append(name_env_);
 
     Ok((
@@ -716,43 +722,22 @@ fn apply_expr_from_pair(
     name_to_ident: &HashMap<String, Ident>,
 ) -> Result<(Expr, NameEnv), ParseError> {
     assert_eq!(pair.as_rule(), Rule::apply_expr);
-    let info = pair_to_info(&pair);
+    let start_info = pair_to_info(&pair);
     let mut pairs = pair.into_inner();
 
-    let head_pair = pairs.next().unwrap();
+    let (mut acc, mut name_env) = primary_expr_from_pair(pairs.next().unwrap(), name_to_ident)?;
 
-    if head_pair.as_rule() == Rule::primary_expr {
-        primary_expr_from_pair(head_pair, name_to_ident)
-    } else if head_pair.as_rule() == Rule::name {
-        let mut name_env = NameEnv::empty();
-
-        let (func_name, func_info) = name_from_pair(head_pair);
-        let func_ident = *name_to_ident.get(&func_name).unwrap();
-        let func_var = Expr::Var(func_ident, func_info);
-
-        assert_eq!(pairs.next().unwrap().as_rule(), Rule::left_paren);
-        let mut args = vec![];
-
-        let mut next_pair = pairs.next().unwrap();
-        while next_pair.as_rule() != Rule::right_paren {
-            let (arg, name_env_) = expr_from_pair(next_pair, name_to_ident)?;
-            name_env.append(name_env_);
-            args.push(arg);
-
-            if pairs.peek().unwrap().as_rule() == Rule::comma {
-                assert_eq!(pairs.next().unwrap().as_rule(), Rule::comma);
-            }
-            next_pair = pairs.next().unwrap();
-        }
-
-        let expr = args.into_iter().fold(func_var, |acc, arg| {
-            Expr::App(Box::new(acc), Box::new(arg), info)
-        });
-
-        Ok((expr, name_env))
-    } else {
-        unreachable!()
+    for pair in pairs {
+        let end_info = pair_to_info(&pair);
+        let (e, name_env_) = primary_expr_from_pair(pair, name_to_ident)?;
+        name_env.append(name_env_);
+        acc = Expr::App(
+            Box::new(acc),
+            Box::new(e),
+            Info::merge(start_info, end_info),
+        );
     }
+    Ok((acc, name_env))
 }
 
 fn primary_expr_from_pair(

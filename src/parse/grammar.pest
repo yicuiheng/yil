@@ -1,6 +1,6 @@
-program = { func+ ~ EOI }
+program = { SOI ~ func+ ~ EOI }
 
-func = { kw_rec? ~ kw_func ~ name ~ refine_type+ ~ colon ~ refine_type ~ paren_expr }
+func = { kw_rec? ~ kw_func ~ name ~ refine_type+ ~ colon ~ refine_type ~ equal ~ expr }
 
 refine_type = {
     int_refine_type |
@@ -25,6 +25,8 @@ expr = {
     let_expr |
     or_expr }
 
+expr_for_debug = { SOI ~ expr ~ EOI }
+
 let_expr = { kw_let ~ name ~ equal ~ expr ~ kw_in ~ expr }
 
 or_expr = { and_expr ~ (or ~ and_expr)* }
@@ -34,10 +36,7 @@ comp_expr = { additive_expr ~ ((eq | neq | leq | lt | geq | gt) ~ additive_expr)
 additive_expr = { multive_expr ~ ((plus | minus) ~ multive_expr)* }
 multive_expr = { apply_expr ~ ((ast | slash | percent) ~ apply_expr)* }
 
-apply_expr = {
-    (name ~ left_paren ~ right_paren) |
-    (name ~ left_paren ~ expr ~ (comma ~ expr)* ~ right_paren) |
-    primary_expr }
+apply_expr = { primary_expr+ }
 
 primary_expr = {
     ifz_expr |
@@ -60,11 +59,11 @@ minus = { "-" }
 ast = { "*" }
 slash = { "/" }
 percent = { "%" }
-or = { "|" }
-and = { "&" }
+or = { "||" }
+and = { "&&" }
 equal = { "=" }
 eq = { "=" }
-neq = { "<>" }
+neq = { "!=" }
 lt = { "<" }
 leq = { "<=" }
 gt = { ">" }

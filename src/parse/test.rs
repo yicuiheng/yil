@@ -12,7 +12,7 @@ use crate::{
 fn parse_program_test() {
     let _builtin = builtin::BuiltinData::instance();
     let init_id = Ident::current_count();
-    let actual = program("func hoge (x: int | true): (y: int | true) ( 1 )  func fuga (a: int | false): (b: int | false) ( 2 )").unwrap();
+    let actual = program("func hoge (x: int | true): (y: int | true) = 1 func fuga (a: int | false): (b: int | false) = 2").unwrap();
     Ident::set_fresh_count(init_id);
 
     assert_eq!(
@@ -79,7 +79,7 @@ fn parse_program_test() {
 fn parse_func_test() {
     let _builtin = builtin::BuiltinData::instance();
     let init_id = Ident::current_count();
-    let actual = func("rec func hoge (x: int | true): (y: int | true) ( 1 )").unwrap();
+    let actual = func("rec func hoge (x: int | true): (y: int | true) = 1").unwrap();
     Ident::set_fresh_count(init_id);
 
     assert_eq!(
@@ -114,7 +114,7 @@ fn parse_func_test() {
         )
     );
 
-    let actual = func("func hoge (x: int | true) (y: int | true): (z: int | true) ( x )").unwrap();
+    let actual = func("func hoge (x: int | true) (y: int | true): (z: int | true) = x").unwrap();
     Ident::set_fresh_count(init_id);
 
     assert_eq!(
@@ -407,7 +407,7 @@ fn parse_expr_test() {
     name_to_ident.insert("f".to_string(), f_ident);
 
     assert_eq!(
-        expr_with_name_map("f(1)", &name_to_ident).unwrap(),
+        expr_with_name_map("f 1", &name_to_ident).unwrap(),
         (
             Expr::App(
                 Box::new(Expr::Var(f_ident, Info::Dummy)),
@@ -424,7 +424,7 @@ fn parse_expr_test() {
     name_to_ident.insert("f".to_string(), f_ident);
 
     assert_eq!(
-        expr_with_name_map("f(1, 2)", &name_to_ident).unwrap(),
+        expr_with_name_map("f 1 2", &name_to_ident).unwrap(),
         (
             Expr::App(
                 Box::new(Expr::App(

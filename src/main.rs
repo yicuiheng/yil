@@ -30,4 +30,5 @@ fn main() {
         typecheck::error::print_error(e, src.as_str());
         std::process::exit(-1);
     });
+    println!("well typed!");
 }
