@@ -5,16 +5,16 @@ pub fn rule_to_str(rule: &Rule) -> &'static str {
         Rule::program => "program",
         Rule::func => "function",
         Rule::refine_type => "refinement type",
-        Rule::formula => "logical formula",
-        Rule::primary_logical_expr => "logical primary expression",
-        Rule::base_type => "base type",
+        Rule::term => "logical term",
+        Rule::primary_term => "logical primary term",
         Rule::expr => "expression",
         Rule::ifz_expr => "if-expression",
         Rule::let_expr => "let-expression",
+        Rule::apply_expr => "func-apply-expression",
         Rule::constant => "constant",
         Rule::variable => "variable",
         Rule::paren_expr => "parened-expression",
-        Rule::ident => "identifier",
+        Rule::name => "identifier",
 
         Rule::left_paren => "'('",
         Rule::right_paren => "')'",
@@ -25,11 +25,11 @@ pub fn rule_to_str(rule: &Rule) -> &'static str {
         Rule::ast => "'*'",
         Rule::slash => "'/'",
         Rule::percent => "'%'",
-        Rule::or => "'|'",
-        Rule::and => "'&'",
+        Rule::or => "'||'",
+        Rule::and => "'&&'",
         Rule::equal => "'='",
-        Rule::eq => "'='",
-        Rule::neq => "'<>'",
+        Rule::eq => "'=='",
+        Rule::neq => "'!='",
         Rule::lt => "'<'",
         Rule::leq => "'<='",
         Rule::gt => "'>'",
@@ -67,12 +67,21 @@ pub fn line_of<'a>(src: &'a str, mut line_num: usize) -> String {
             line_num -= 1;
         }
     }
-    unreachable!()
+    line
 }
 
-pub fn span_to_pos_info(span: &pest::Span) -> PosInfo {
-    PosInfo {
-        start: span.start(),
-        end: span.end(),
-    }
+use pest::iterators::Pair;
+pub fn pair_to_info<R: pest::RuleType>(pair: &Pair<R>) -> Info {
+    let (start_line, start_col) = pair.as_span().start_pos().line_col();
+    let (end_line, end_col) = pair.as_span().end_pos().line_col();
+    Info::Range(
+        Pos {
+            line: start_line,
+            col: start_col,
+        },
+        Pos {
+            line: end_line,
+            col: end_col,
+        },
+    )
 }
