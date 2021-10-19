@@ -1,0 +1,3 @@
+rec func hoge (x:int | true): (y: int | true) =
+  ifz hoge { 0 }
+  else { 1 }

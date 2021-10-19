@@ -1,3 +1,2 @@
 rec func hoge (a: int | true): (ret: int | ret = 0) =
-    let a = 1 + 2 in
-    a >= 3
+    (1 + 2) >= 3

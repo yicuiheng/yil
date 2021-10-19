@@ -1,0 +1,11 @@
+rec func is_even (n:int | n >= 0) :
+  (ret: int | ((n % 2 = 0) => ret = 0) && ((n %2 != 0) => ret = 0)) =
+
+  ifz n { 0 }
+  else { is_odd (n - 1) }
+
+rec func is_odd (n:int | n >= 0) :
+  (ret: int | ((n % 2 = 0) => ret = 1) && ((n %2 != 0) => ret = 0)) =
+  
+  ifz n { 1 }
+  else { is_even (n - 1) }
