@@ -29,6 +29,19 @@ impl PartialEq for Info {
 impl Eq for Info {}
 
 impl Info {
+    #[cfg(not(test))]
+    pub fn as_range(self) -> (Pos, Pos) {
+        match self {
+            Info::Range(start, end) => (start, end),
+            _ => unreachable!(),
+        }
+    }
+
+    #[cfg(test)]
+    pub fn as_range(self) -> (Pos, Pos) {
+        (Pos { line: 0, col: 0 }, Pos { line: 0, col: 0 })
+    }
+
     pub fn merge(self, other: Self) -> Self {
         match (self, other) {
             (Self::Range(start_pos, _), Self::Range(_, end_pos)) => Info::Range(start_pos, end_pos),
@@ -74,6 +87,21 @@ pub trait Node {
 pub struct Program {
     pub funcs: Vec<Func>,
     pub info: Info,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum SimpleType {
+    FuncType(Box<SimpleType>, Box<SimpleType>),
+    IntType,
+}
+
+impl std::fmt::Display for SimpleType {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            SimpleType::IntType => write!(fmt, "int"),
+            SimpleType::FuncType(from, to) => write!(fmt, "({} -> {})", from, to),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -152,6 +180,18 @@ impl Type {
     }
 }
 
+impl From<&Type> for SimpleType {
+    fn from(typ: &Type) -> SimpleType {
+        match typ {
+            Type::FuncType(_, type1, type2, _) => SimpleType::FuncType(
+                Box::new(SimpleType::from(&**type1)),
+                Box::new(SimpleType::from(&**type2)),
+            ),
+            Type::IntType(_, _, _) => SimpleType::IntType,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct Func {
     pub typ: Type,
@@ -167,4 +207,40 @@ pub enum Expr {
     Ifz(Box<Expr>, Box<Expr>, Box<Expr>, Info),
     Let(Ident, Box<Expr>, Box<Expr>, Info),
     App(Box<Expr>, Box<Expr>, Info),
+}
+
+impl Node for Expr {
+    fn to_readable_string(&self, name_env: &NameEnv) -> String {
+        match self {
+            Expr::Num(n, _) => n.to_string(),
+            Expr::Var(ident, _) => name_env.lookup(*ident).clone(),
+            Expr::Ifz(cond, expr1, expr2, _) => format!(
+                "ifz {} {{ {} }} else {{ {} }}",
+                cond.to_readable_string(name_env),
+                expr1.to_readable_string(name_env),
+                expr2.to_readable_string(name_env)
+            ),
+            Expr::Let(ident, expr1, expr2, _) => format!(
+                "let {} = {} in {}",
+                name_env.lookup(*ident),
+                expr1.to_readable_string(name_env),
+                expr2.to_readable_string(name_env)
+            ),
+            Expr::App(expr1, expr2, _) => format!(
+                "({} {})",
+                expr1.to_readable_string(name_env),
+                expr2.to_readable_string(name_env)
+            ),
+        }
+    }
+
+    fn info(&self) -> &Info {
+        match self {
+            Expr::Num(_, info)
+            | Expr::Var(_, info)
+            | Expr::Ifz(_, _, _, info)
+            | Expr::Let(_, _, _, info)
+            | Expr::App(_, _, info) => info,
+        }
+    }
 }

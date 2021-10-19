@@ -9,7 +9,14 @@ use crate::{
 fn check_well_typed_expr(e: Expr, typ: Type, type_env: &TypeEnv) {
     let mut constraints = vec![];
     let (typ_, type_env) = typecheck_expr(&e, &type_env, &mut constraints).unwrap();
-    constraints::add_subtype_constraint(&typ_, &typ, &type_env, &mut constraints);
+    let dummy_pos = Pos { line: 0, col: 0 };
+    constraints::add_subtype_constraint(
+        &typ_,
+        &typ,
+        &type_env,
+        &mut constraints,
+        (dummy_pos, dummy_pos),
+    );
 
     assert_eq!(constraints::solve_constraints(constraints), Ok(()));
 }
@@ -18,8 +25,14 @@ fn check_well_typed_expr(e: Expr, typ: Type, type_env: &TypeEnv) {
 fn check_ill_typed_expr(e: Expr, typ: Type, type_env: &TypeEnv) {
     let mut constraints = vec![];
     let (typ_, type_env) = typecheck_expr(&e, &type_env, &mut constraints).unwrap();
-    constraints::add_subtype_constraint(&typ_, &typ, &type_env, &mut constraints);
-
+    let dummy_pos = Pos { line: 0, col: 0 };
+    constraints::add_subtype_constraint(
+        &typ_,
+        &typ,
+        &type_env,
+        &mut constraints,
+        (dummy_pos, dummy_pos),
+    );
     if let Ok(_) = constraints::solve_constraints(constraints) {
         panic!()
     }

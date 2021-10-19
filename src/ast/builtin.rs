@@ -2,7 +2,7 @@ use once_cell::sync::OnceCell;
 
 use crate::{
     ast::{logic::*, *},
-    env::TypeEnv,
+    env::{SimpleTypeEnv, TypeEnv},
 };
 
 static INSTANCE: OnceCell<BuiltinData> = OnceCell::new();
@@ -97,6 +97,16 @@ impl BuiltinData {
             None
         }
     }
+
+    pub fn simple_type_env() -> SimpleTypeEnv {
+        let builtin = BuiltinData::instance();
+        let mut simple_type_env = SimpleTypeEnv::empty();
+        for ident in builtin.into_iter() {
+            simple_type_env.insert(ident, simple_type_of(ident).unwrap());
+        }
+        simple_type_env
+    }
+
     pub fn type_env() -> TypeEnv {
         let builtin = BuiltinData::instance();
         let mut type_env = TypeEnv::empty();
@@ -105,6 +115,46 @@ impl BuiltinData {
         }
         type_env
     }
+}
+
+fn simple_type_of(ident: Ident) -> Option<SimpleType> {
+    let inst = BuiltinData::instance();
+    let binop_simple_type = SimpleType::FuncType(
+        Box::new(SimpleType::IntType),
+        Box::new(SimpleType::FuncType(
+            Box::new(SimpleType::IntType),
+            Box::new(SimpleType::IntType),
+        )),
+    );
+    Some(if inst.or_ident == ident {
+        binop_simple_type
+    } else if inst.and_ident == ident {
+        binop_simple_type
+    } else if inst.eq_ident == ident {
+        binop_simple_type
+    } else if inst.neq_ident == ident {
+        binop_simple_type
+    } else if inst.lt_ident == ident {
+        binop_simple_type
+    } else if inst.leq_ident == ident {
+        binop_simple_type
+    } else if inst.gt_ident == ident {
+        binop_simple_type
+    } else if inst.geq_ident == ident {
+        binop_simple_type
+    } else if inst.add_ident == ident {
+        binop_simple_type
+    } else if inst.sub_ident == ident {
+        binop_simple_type
+    } else if inst.mult_ident == ident {
+        binop_simple_type
+    } else if inst.div_ident == ident {
+        binop_simple_type
+    } else if inst.rem_ident == ident {
+        binop_simple_type
+    } else {
+        return None;
+    })
 }
 
 fn type_of(ident: Ident) -> Option<Type> {

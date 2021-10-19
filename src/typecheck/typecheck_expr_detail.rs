@@ -1,5 +1,5 @@
 use crate::{
-    ast::{logic::*, Expr, Ident, Info, Type},
+    ast::{logic::*, Expr, Ident, Info, Pos, Type},
     env::TypeEnv,
     typecheck::{constraints::add_subtype_constraint, typecheck_expr, TypeError},
 };
@@ -30,7 +30,7 @@ pub fn typecheck_ifz_expr(
     e1: &Expr,
     e2: &Expr,
     type_env: &TypeEnv,
-    constraints: &mut Vec<Term>,
+    constraints: &mut Vec<(Term, (Pos, Pos))>,
 ) -> Result<(Type, TypeEnv), TypeError> {
     if let (Type::IntType(cond_ident, cond_term, _), type_env) =
         typecheck_expr(cond, type_env, constraints)?
@@ -125,14 +125,10 @@ pub fn typecheck_ifz_expr(
             ) => {
                 todo!()
             }
-            (type1, type2) => Err(TypeError::IfzBranchSimpleTypeError {
-                type1,
-                type2,
-                info: Info::Dummy,
-            }),
+            _ => unreachable!(),
         }
     } else {
-        Err(TypeError::IfzCondMustBeInt(cond.clone()))
+        unreachable!()
     }
 }
 
@@ -141,7 +137,7 @@ pub fn typecheck_let_expr(
     e1: &Expr,
     e2: &Expr,
     type_env: &TypeEnv,
-    constraints: &mut Vec<Term>,
+    constraints: &mut Vec<(Term, (Pos, Pos))>,
 ) -> Result<(Type, TypeEnv), TypeError> {
     let (e1_type, mut type_env) = typecheck_expr(e1, type_env, constraints)?;
     type_env.insert(*ident, e1_type.clone());
@@ -157,18 +153,22 @@ pub fn typecheck_app_expr(
     arg: &Expr,
     _info: &Info,
     type_env: &TypeEnv,
-    constraints: &mut Vec<Term>,
+    constraints: &mut Vec<(Term, (Pos, Pos))>,
 ) -> Result<(Type, TypeEnv), TypeError> {
+    use crate::ast::Node;
+    let (start, _) = func.info().as_range();
+    let (_, end) = arg.info().as_range();
+
     let (func_type, type_env) = typecheck_expr(func, type_env, constraints)?;
     let (arg_type, mut type_env) = typecheck_expr(arg, &type_env, constraints)?;
     match func_type {
-        int_type @ Type::IntType(_, _, _) => Err(TypeError::FuncExpected(int_type, Info::Dummy)),
         Type::FuncType(_, from_type, to_type, _) => {
-            add_subtype_constraint(&arg_type, &from_type, &type_env, constraints);
+            add_subtype_constraint(&arg_type, &from_type, &type_env, constraints, (start, end));
             let arg_ident = arg_type.ident();
             type_env.insert(arg_ident, arg_type);
             let ret_type = to_type.subst(from_type.ident(), &Term::Var(arg_ident, Info::Dummy));
             Ok((ret_type, type_env))
         }
+        _ => unreachable!(),
     }
 }

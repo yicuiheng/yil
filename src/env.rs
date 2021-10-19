@@ -7,6 +7,7 @@ use crate::ast::*;
 pub struct Env<T>(HashMap<Ident, T>);
 
 pub type NameEnv = Env<String>;
+pub type SimpleTypeEnv = Env<SimpleType>;
 pub type TypeEnv = Env<Type>;
 
 impl<T> PartialEq for Env<T> {

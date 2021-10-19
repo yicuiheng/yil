@@ -4,7 +4,8 @@ pub fn add_subtype_constraint(
     type1: &Type,
     type2: &Type,
     type_env: &TypeEnv,
-    constraints: &mut Vec<logic::Term>,
+    constraints: &mut Vec<(logic::Term, (Pos, Pos))>,
+    range: (Pos, Pos),
 ) {
     let env_term =
         type_env
@@ -32,26 +33,29 @@ pub fn add_subtype_constraint(
             let term2 = term2
                 .clone()
                 .subst(*ident2, &logic::Term::Var(fresh_name, Info::Dummy));
-            constraints.push(logic::Term::Bin(
-                logic::BinOp::Imply,
-                Box::new(logic::Term::Bin(
-                    logic::BinOp::And,
-                    Box::new(env_term),
-                    Box::new(term1),
+            constraints.push((
+                logic::Term::Bin(
+                    logic::BinOp::Imply,
+                    Box::new(logic::Term::Bin(
+                        logic::BinOp::And,
+                        Box::new(env_term),
+                        Box::new(term1),
+                        Info::Dummy,
+                    )),
+                    Box::new(term2),
                     Info::Dummy,
-                )),
-                Box::new(term2),
-                Info::Dummy,
+                ),
+                range,
             ));
         }
         _ => todo!(),
     }
 }
 
-pub fn solve_constraints(constraints: Vec<logic::Term>) -> Result<(), TypeError> {
-    for constraint in constraints {
+pub fn solve_constraints(constraints: Vec<(logic::Term, (Pos, Pos))>) -> Result<(), TypeError> {
+    for (constraint, (start, end)) in constraints {
         if !smt::check_validity(constraint.clone())? {
-            return Err(TypeError::NotValidConstraint(constraint));
+            return Err(TypeError::NotValidConstraint(constraint, (start, end)));
         }
     }
     Ok(())

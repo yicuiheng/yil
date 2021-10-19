@@ -4,6 +4,7 @@ extern crate pest_derive;
 
 mod ast;
 mod env;
+mod error_report_util;
 mod parse;
 mod smt;
 mod typecheck;
@@ -21,13 +22,14 @@ fn main() {
     let opts = Opts::parse();
 
     let src = std::fs::read_to_string(opts.filename).expect("failed to read file..");
+    let src_lines: Vec<&str> = src.lines().collect();
 
-    let (program, _) = parse::program(src.as_str()).unwrap_or_else(|e| {
-        parse::error::print_error(e, src.as_str());
+    let (program, name_env) = parse::program(src.as_str()).unwrap_or_else(|err| {
+        err.print(&src_lines).unwrap();
         std::process::exit(-1);
     });
-    typecheck::program(&program).unwrap_or_else(|e| {
-        typecheck::error::print_error(e, src.as_str());
+    typecheck::typecheck_program(&program).unwrap_or_else(|err| {
+        err.print(&name_env, &src_lines).unwrap();
         std::process::exit(-1);
     });
     println!("well typed!");

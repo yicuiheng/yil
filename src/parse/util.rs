@@ -5,12 +5,25 @@ pub fn rule_to_str(rule: &Rule) -> &'static str {
         Rule::program => "program",
         Rule::func => "function",
         Rule::refine_type => "refinement type",
+        Rule::int_refine_type => "refinement int type",
+        Rule::func_refine_type => "refinement func type",
         Rule::term => "logical term",
+        Rule::and_term => "logical and-term",
+        Rule::imply_term => "logical imply-term",
+        Rule::binop_term => "logical binary term",
+        Rule::additive_term => "logical additive term",
+        Rule::multive_term => "logical multive term",
         Rule::primary_term => "logical primary term",
         Rule::expr => "expression",
-        Rule::ifz_expr => "if-expression",
         Rule::let_expr => "let-expression",
+        Rule::or_expr => "or-expression",
+        Rule::and_expr => "and-expression",
+        Rule::comp_expr => "comp-expression",
+        Rule::additive_expr => "additive expression",
+        Rule::multive_expr => "multive expression",
         Rule::apply_expr => "func-apply-expression",
+        Rule::primary_expr => "primary expression",
+        Rule::ifz_expr => "ifz-expression",
         Rule::constant => "constant",
         Rule::variable => "variable",
         Rule::paren_expr => "parened-expression",
@@ -28,7 +41,7 @@ pub fn rule_to_str(rule: &Rule) -> &'static str {
         Rule::or => "'||'",
         Rule::and => "'&&'",
         Rule::equal => "'='",
-        Rule::eq => "'=='",
+        Rule::eq => "'='",
         Rule::neq => "'!='",
         Rule::lt => "'<'",
         Rule::leq => "'<='",
@@ -49,25 +62,13 @@ pub fn rule_to_str(rule: &Rule) -> &'static str {
         Rule::kw_int => "'int'",
         Rule::kw_true => "'true'",
         Rule::kw_false => "'false'",
+        Rule::EOI => "<eof>",
 
-        _ => unreachable!(),
-    }
-}
-
-pub fn line_of<'a>(src: &'a str, mut line_num: usize) -> String {
-    let mut line = String::new();
-    for c in src.chars() {
-        if line_num == 0 && c == '\n' {
-            return line;
-        }
-        if line_num == 0 {
-            line.push(c);
-        }
-        if c == '\n' {
-            line_num -= 1;
+        rule => {
+            eprintln!("{:?}", rule);
+            unreachable!()
         }
     }
-    line
 }
 
 use pest::iterators::Pair;

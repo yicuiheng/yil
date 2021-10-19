@@ -209,7 +209,7 @@ fn binop<T, BinOpT: Copy>(
         Pair<Rule>,
         name_to_ident: &HashMap<String, Ident>,
     ) -> Result<(T, NameEnv), ParseError>,
-    op_map: HashMap<Rule, BinOpT>,
+    op_map: HashMap<Rule, fn(Info) -> BinOpT>,
     ctor: fn(BinOpT, Box<T>, Box<T>, Info) -> T,
 ) -> Result<(T, NameEnv), ParseError> {
     let pair = pairs.next().unwrap();
@@ -217,6 +217,7 @@ fn binop<T, BinOpT: Copy>(
     assert_eq!(pair.as_rule(), child_rule);
     let (mut acc, mut name_env) = child_from_pair(pair, name_to_ident)?;
     while let Some(pair) = pairs.next() {
+        let op_info = pair_to_info(&pair);
         let op = *op_map.get(&pair.as_rule()).unwrap();
         let pair = pairs.next().unwrap();
         assert_eq!(pair.as_rule(), child_rule);
@@ -224,7 +225,7 @@ fn binop<T, BinOpT: Copy>(
         let (rhs, name_env_) = child_from_pair(pair, name_to_ident)?;
         name_env.append(name_env_);
         acc = ctor(
-            op,
+            op(op_info),
             Box::new(acc),
             Box::new(rhs),
             Info::merge(start_info, end_info),
@@ -246,7 +247,10 @@ fn term_from_pair(
         name_to_ident,
         Rule::and_term,
         and_term_from_pair,
-        HashMap::from_iter(IntoIter::new([(Rule::or, logic::BinOp::Or)])),
+        HashMap::from_iter(IntoIter::new([(
+            Rule::or,
+            (|_| logic::BinOp::Or) as fn(Info) -> logic::BinOp,
+        )])),
         logic::Term::Bin,
     )
 }
@@ -264,7 +268,10 @@ fn and_term_from_pair(
         name_to_ident,
         Rule::imply_term,
         imply_term_from_pair,
-        HashMap::from_iter(IntoIter::new([(Rule::and, logic::BinOp::And)])),
+        HashMap::from_iter(IntoIter::new([(
+            Rule::and,
+            (|_| logic::BinOp::And) as fn(Info) -> logic::BinOp,
+        )])),
         logic::Term::Bin,
     )
 }
@@ -282,7 +289,10 @@ fn imply_term_from_pair(
         name_to_ident,
         Rule::binop_term,
         binop_term_from_pair,
-        HashMap::from_iter(IntoIter::new([(Rule::fat_arrow, logic::BinOp::Imply)])),
+        HashMap::from_iter(IntoIter::new([(
+            Rule::fat_arrow,
+            (|_| logic::BinOp::Imply) as fn(Info) -> logic::BinOp,
+        )])),
         logic::Term::Bin,
     )
 }
@@ -344,8 +354,11 @@ fn additive_term_from_pair(
         Rule::multive_term,
         multive_term_from_pair,
         HashMap::from_iter(IntoIter::new([
-            (Rule::plus, logic::BinOp::Add),
-            (Rule::minus, logic::BinOp::Sub),
+            (
+                Rule::plus,
+                (|_| logic::BinOp::Add) as fn(Info) -> logic::BinOp,
+            ),
+            (Rule::minus, |_| logic::BinOp::Sub),
         ])),
         logic::Term::Bin,
     )
@@ -365,9 +378,12 @@ fn multive_term_from_pair(
         Rule::primary_term,
         primary_term_from_pair,
         HashMap::from_iter(IntoIter::new([
-            (Rule::ast, logic::BinOp::Mult),
-            (Rule::slash, logic::BinOp::Div),
-            (Rule::percent, logic::BinOp::Rem),
+            (
+                Rule::ast,
+                (|_| logic::BinOp::Mult) as fn(Info) -> logic::BinOp,
+            ),
+            (Rule::slash, |_| logic::BinOp::Div),
+            (Rule::percent, |_| logic::BinOp::Rem),
         ])),
         logic::Term::Bin,
     )
@@ -484,10 +500,22 @@ fn func_refine_type_from_pair(
         .into_iter()
         .rev()
         .reduce(|acc, typ| {
+            let (_, end) = acc.info().as_range();
+            let (start, _) = typ.info().as_range();
             if typ.ident() == first_param_ident {
-                Type::FuncType(func_ident, Box::new(typ), Box::new(acc), Info::Dummy)
+                Type::FuncType(
+                    func_ident,
+                    Box::new(typ),
+                    Box::new(acc),
+                    Info::Range(start, end),
+                )
             } else {
-                Type::FuncType(Ident::fresh(), Box::new(typ), Box::new(acc), Info::Dummy)
+                Type::FuncType(
+                    Ident::fresh(),
+                    Box::new(typ),
+                    Box::new(acc),
+                    Info::Range(start, end),
+                )
             }
         })
         .unwrap();
@@ -566,15 +594,11 @@ fn or_expr_from_pair(
         and_expr_from_pair,
         HashMap::from_iter(IntoIter::new([(
             Rule::or,
-            builtin::BuiltinData::instance().or_ident,
+            (|info| (builtin::BuiltinData::instance().or_ident, info)) as fn(Info) -> (Ident, Info),
         )])),
-        |op_ident, lhs, rhs, info| {
+        |(op_ident, op_info), lhs, rhs, info| {
             Expr::App(
-                Box::new(Expr::App(
-                    Box::new(Expr::Var(op_ident, Info::Dummy)),
-                    lhs,
-                    info,
-                )),
+                Box::new(Expr::App(Box::new(Expr::Var(op_ident, op_info)), lhs, info)),
                 rhs,
                 info,
             )
@@ -597,15 +621,12 @@ fn and_expr_from_pair(
         comp_expr_from_pair,
         HashMap::from_iter(IntoIter::new([(
             Rule::and,
-            builtin::BuiltinData::instance().and_ident,
+            (|info| (builtin::BuiltinData::instance().and_ident, info))
+                as fn(Info) -> (Ident, Info),
         )])),
-        |op_ident, lhs, rhs, info| {
+        |(op_ident, op_info), lhs, rhs, info| {
             Expr::App(
-                Box::new(Expr::App(
-                    Box::new(Expr::Var(op_ident, Info::Dummy)),
-                    lhs,
-                    info,
-                )),
+                Box::new(Expr::App(Box::new(Expr::Var(op_ident, op_info)), lhs, info)),
                 rhs,
                 info,
             )
@@ -621,28 +642,45 @@ fn comp_expr_from_pair(
     use std::iter::FromIterator;
     assert_eq!(pair.as_rule(), Rule::comp_expr);
 
-    let builtin = builtin::BuiltinData::instance();
-
     binop(
         pair.into_inner(),
         name_to_ident,
         Rule::additive_expr,
         additive_expr_from_pair,
         HashMap::from_iter(IntoIter::new([
-            (Rule::eq, builtin.eq_ident),
-            (Rule::neq, builtin.neq_ident),
-            (Rule::lt, builtin.lt_ident),
-            (Rule::leq, builtin.leq_ident),
-            (Rule::gt, builtin.gt_ident),
-            (Rule::geq, builtin.geq_ident),
+            (
+                Rule::eq,
+                (|info| (builtin::BuiltinData::instance().eq_ident, info))
+                    as fn(Info) -> (Ident, Info),
+            ),
+            (
+                Rule::neq,
+                (|info| (builtin::BuiltinData::instance().neq_ident, info)),
+            ),
+            (
+                Rule::lt,
+                (|info| (builtin::BuiltinData::instance().lt_ident, info))
+                    as fn(Info) -> (Ident, Info),
+            ),
+            (
+                Rule::leq,
+                (|info| (builtin::BuiltinData::instance().leq_ident, info))
+                    as fn(Info) -> (Ident, Info),
+            ),
+            (
+                Rule::gt,
+                (|info| (builtin::BuiltinData::instance().gt_ident, info))
+                    as fn(Info) -> (Ident, Info),
+            ),
+            (
+                Rule::geq,
+                (|info| (builtin::BuiltinData::instance().geq_ident, info))
+                    as fn(Info) -> (Ident, Info),
+            ),
         ])),
-        |op_ident, lhs, rhs, info| {
+        |(op_ident, op_info), lhs, rhs, info| {
             Expr::App(
-                Box::new(Expr::App(
-                    Box::new(Expr::Var(op_ident, Info::Dummy)),
-                    lhs,
-                    info,
-                )),
+                Box::new(Expr::App(Box::new(Expr::Var(op_ident, op_info)), lhs, info)),
                 rhs,
                 info,
             )
@@ -658,24 +696,26 @@ fn additive_expr_from_pair(
     use std::iter::FromIterator;
     assert_eq!(pair.as_rule(), Rule::additive_expr);
 
-    let builtin = builtin::BuiltinData::instance();
-
     binop(
         pair.into_inner(),
         name_to_ident,
         Rule::multive_expr,
         multive_expr_from_pair,
         HashMap::from_iter(IntoIter::new([
-            (Rule::plus, builtin.add_ident),
-            (Rule::minus, builtin.sub_ident),
+            (
+                Rule::plus,
+                (|info| (builtin::BuiltinData::instance().add_ident, info))
+                    as fn(Info) -> (Ident, Info),
+            ),
+            (
+                Rule::minus,
+                (|info| (builtin::BuiltinData::instance().sub_ident, info))
+                    as fn(Info) -> (Ident, Info),
+            ),
         ])),
-        |op_ident, lhs, rhs, info| {
+        |(op_ident, op_info), lhs, rhs, info| {
             Expr::App(
-                Box::new(Expr::App(
-                    Box::new(Expr::Var(op_ident, Info::Dummy)),
-                    lhs,
-                    info,
-                )),
+                Box::new(Expr::App(Box::new(Expr::Var(op_ident, op_info)), lhs, info)),
                 rhs,
                 info,
             )
@@ -691,25 +731,31 @@ fn multive_expr_from_pair(
     use std::iter::FromIterator;
     assert_eq!(pair.as_rule(), Rule::multive_expr);
 
-    let builtin = builtin::BuiltinData::instance();
-
     binop(
         pair.into_inner(),
         name_to_ident,
         Rule::apply_expr,
         apply_expr_from_pair,
         HashMap::from_iter(IntoIter::new([
-            (Rule::ast, builtin.mult_ident),
-            (Rule::slash, builtin.div_ident),
-            (Rule::percent, builtin.rem_ident),
+            (
+                Rule::ast,
+                (|info| (builtin::BuiltinData::instance().mult_ident, info))
+                    as fn(Info) -> (Ident, Info),
+            ),
+            (
+                Rule::slash,
+                (|info| (builtin::BuiltinData::instance().div_ident, info))
+                    as fn(Info) -> (Ident, Info),
+            ),
+            (
+                Rule::percent,
+                (|info| (builtin::BuiltinData::instance().rem_ident, info))
+                    as fn(Info) -> (Ident, Info),
+            ),
         ])),
-        |op_ident, lhs, rhs, info| {
+        |(op_ident, op_info), lhs, rhs, info| {
             Expr::App(
-                Box::new(Expr::App(
-                    Box::new(Expr::Var(op_ident, Info::Dummy)),
-                    lhs,
-                    info,
-                )),
+                Box::new(Expr::App(Box::new(Expr::Var(op_ident, op_info)), lhs, info)),
                 rhs,
                 info,
             )
