@@ -30,9 +30,14 @@ fn typecheck_func(func: &Func, common_type_env: TypeEnv) -> Result<(), TypeError
     let mut type_env = common_type_env;
 
     let mut ret_type: &Type = &func.typ;
+    let mut count = func.params_len;
     while let Type::FuncType(_, from_type, to_type, _) = ret_type {
+        if count == 0 {
+            break;
+        }
         type_env.insert(from_type.ident(), *from_type.clone());
         ret_type = to_type;
+        count -= 1;
     }
 
     let mut constraints = vec![];

@@ -195,6 +195,7 @@ impl From<&Type> for SimpleType {
 #[derive(Debug, PartialEq, Eq)]
 pub struct Func {
     pub typ: Type,
+    pub params_len: usize, // どこからが関数の返り値の型かを知るために必要
     pub is_rec: bool,
     pub body: Expr,
     pub info: Info,

@@ -26,13 +26,10 @@ pub fn add_subtype_constraint(
 
     match (type1, type2) {
         (Type::IntType(ident1, term1, _), Type::IntType(ident2, term2, _)) => {
-            let fresh_name = Ident::fresh();
-            let term1 = term1
-                .clone()
-                .subst(*ident1, &logic::Term::Var(fresh_name, Info::Dummy));
+            let term1 = term1.clone();
             let term2 = term2
                 .clone()
-                .subst(*ident2, &logic::Term::Var(fresh_name, Info::Dummy));
+                .subst(*ident2, &logic::Term::Var(*ident1, Info::Dummy));
             constraints.push((
                 logic::Term::Bin(
                     logic::BinOp::Imply,
@@ -48,7 +45,11 @@ pub fn add_subtype_constraint(
                 range,
             ));
         }
-        _ => todo!(),
+        (Type::FuncType(_, type11, type12, _), Type::FuncType(_, type21, type22, _)) => {
+            add_subtype_constraint(type12, type22, type_env, constraints, range);
+            add_subtype_constraint(type21, type11, type_env, constraints, range);
+        }
+        _ => unreachable!(),
     }
 }
 

@@ -159,6 +159,7 @@ fn func_from_pair_step2(
         pair = pairs.next().unwrap();
     }
     assert!(param_types.len() >= 1);
+    let params_len = param_types.len();
 
     assert_eq!(pair.as_rule(), Rule::colon);
 
@@ -193,6 +194,7 @@ fn func_from_pair_step2(
     Ok((
         Func {
             typ,
+            params_len,
             is_rec,
             body,
             info,

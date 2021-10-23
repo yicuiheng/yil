@@ -79,56 +79,173 @@ pub fn typecheck_ifz_expr(
         let (false_branch_type, type_env) =
             typecheck_expr(e2, &false_branch_type_env, constraints)?;
 
-        match (true_branch_type, false_branch_type) {
-            (Type::IntType(ident1, term1, _), Type::IntType(ident2, term2, _)) => {
-                // (cond = 0 => true_formula) and (cond != 0 => false_formula)
+        make_ifz_type(cond_ident, true_branch_type, false_branch_type, type_env)
+    } else {
+        unreachable!()
+    }
+}
+
+fn make_ifz_type(
+    cond_ident: Ident,
+    mut type1: Type,
+    mut type2: Type,
+    type_env: TypeEnv,
+) -> Result<(Type, TypeEnv), TypeError> {
+    let mut param_types = vec![];
+
+    loop {
+        match (type1, type2) {
+            (
+                Type::FuncType(ident1, type11, type12, _),
+                Type::FuncType(ident2, type21, type22, _),
+            ) => {
                 let ident = Ident::fresh();
-                let term1 = term1.subst(ident1, &Term::Var(ident, Info::Dummy));
-                let term2 = term2.subst(ident2, &Term::Var(ident, Info::Dummy));
-                Ok((
-                    Type::IntType(
-                        ident,
-                        Term::Bin(
+                let ident_var = Term::Var(ident, Info::Dummy);
+                let type11 = type11.subst(ident1, &ident_var);
+                let mut type12 = type12.subst(ident1, &ident_var);
+                let type21 = type21.subst(ident2, &ident_var);
+                let mut type22 = type22.subst(ident2, &ident_var);
+
+                let (param_type, subst) = make_and_type(type11, type21);
+                param_types.push((ident, param_type));
+                for (from_ident, to_ident) in subst {
+                    let to_ident_var = Term::Var(to_ident, Info::Dummy);
+                    type12 = type12.subst(from_ident, &to_ident_var);
+                    type22 = type22.subst(from_ident, &to_ident_var);
+                }
+                type1 = type12;
+                type2 = type22;
+            }
+            (Type::IntType(ident1, term1, _), Type::IntType(ident2, term2, _)) => {
+                // (cond = 0 and term1) or (cond != 0 and term2)
+                let ident = Ident::fresh();
+                let ident_var = Term::Var(ident, Info::Dummy);
+                let term1 = term1.subst(ident1, &ident_var);
+                let term2 = term2.subst(ident2, &ident_var);
+                let typ = Type::IntType(
+                    ident,
+                    Term::Bin(
+                        BinOp::Or,
+                        Box::new(Term::Bin(
                             BinOp::And,
                             Box::new(Term::Bin(
-                                BinOp::Imply,
-                                Box::new(Term::Bin(
-                                    BinOp::Eq,
-                                    Box::new(Term::Var(cond_ident, Info::Dummy)),
-                                    Box::new(Term::Num(0, Info::Dummy)),
-                                    Info::Dummy,
-                                )),
-                                Box::new(term1),
+                                BinOp::Eq,
+                                Box::new(Term::Var(cond_ident, Info::Dummy)),
+                                Box::new(Term::Num(0, Info::Dummy)),
                                 Info::Dummy,
                             )),
-                            Box::new(Term::Bin(
-                                BinOp::Imply,
-                                Box::new(Term::Bin(
-                                    BinOp::Neq,
-                                    Box::new(Term::Var(cond_ident, Info::Dummy)),
-                                    Box::new(Term::Num(0, Info::Dummy)),
-                                    Info::Dummy,
-                                )),
-                                Box::new(term2),
-                                Info::Dummy,
-                            )),
+                            Box::new(term1),
                             Info::Dummy,
-                        ),
+                        )),
+                        Box::new(Term::Bin(
+                            BinOp::And,
+                            Box::new(Term::Bin(
+                                BinOp::Neq,
+                                Box::new(Term::Var(cond_ident, Info::Dummy)),
+                                Box::new(Term::Num(0, Info::Dummy)),
+                                Info::Dummy,
+                            )),
+                            Box::new(term2),
+                            Info::Dummy,
+                        )),
                         Info::Dummy,
                     ),
-                    type_env,
-                ))
-            }
-            (
-                Type::FuncType(_param_ident1, _type11, _type12, _),
-                Type::FuncType(_param_ident2, _type21, _type22, _),
-            ) => {
-                todo!()
+                    Info::Dummy,
+                );
+                let typ = param_types
+                    .into_iter()
+                    .rev()
+                    .fold(typ, |acc, (ident, typ)| {
+                        Type::FuncType(ident, Box::new(typ), Box::new(acc), Info::Dummy)
+                    });
+                return Ok((typ, type_env));
             }
             _ => unreachable!(),
         }
-    } else {
-        unreachable!()
+    }
+}
+
+fn make_and_type(type1: Type, type2: Type) -> (Type, Vec<(Ident, Ident)>) {
+    match (type1, type2) {
+        (Type::IntType(ident1, term1, _), Type::IntType(ident2, term2, _)) => {
+            let mut subst = vec![];
+            let ident = Ident::fresh();
+            subst.push((ident1, ident));
+            subst.push((ident2, ident));
+            let ident_var = Term::Var(ident, Info::Dummy);
+            let term1 = term1.subst(ident1, &ident_var);
+            let term2 = term2.subst(ident2, &ident_var);
+            (
+                Type::IntType(
+                    ident,
+                    Term::Bin(BinOp::And, Box::new(term1), Box::new(term2), Info::Dummy),
+                    Info::Dummy,
+                ),
+                subst,
+            )
+        }
+        (Type::FuncType(ident1, type11, type12, _), Type::FuncType(ident2, type21, type22, _)) => {
+            let mut subst = vec![];
+            let ident = Ident::fresh();
+            subst.push((ident1, ident));
+            subst.push((ident2, ident));
+            let ident_var = Term::Var(ident, Info::Dummy);
+            let type11 = type11.subst(ident1, &ident_var);
+            let type12 = type12.subst(ident1, &ident_var);
+            let type21 = type21.subst(ident2, &ident_var);
+            let type22 = type22.subst(ident2, &ident_var);
+            let (type1, mut subst_) = make_or_type(type11, type21);
+            subst.append(&mut subst_);
+            let (type2, mut subst_) = make_and_type(type12, type22);
+            subst.append(&mut subst_);
+            (
+                Type::FuncType(ident, Box::new(type1), Box::new(type2), Info::Dummy),
+                subst,
+            )
+        }
+        _ => unreachable!(),
+    }
+}
+
+fn make_or_type(type1: Type, type2: Type) -> (Type, Vec<(Ident, Ident)>) {
+    match (type1, type2) {
+        (Type::IntType(ident1, term1, _), Type::IntType(ident2, term2, _)) => {
+            let mut subst = vec![];
+            let ident = Ident::fresh();
+            subst.push((ident1, ident));
+            subst.push((ident2, ident));
+            let ident_var = Term::Var(ident, Info::Dummy);
+            let term1 = term1.subst(ident1, &ident_var);
+            let term2 = term2.subst(ident2, &ident_var);
+            (
+                Type::IntType(
+                    ident,
+                    Term::Bin(BinOp::Or, Box::new(term1), Box::new(term2), Info::Dummy),
+                    Info::Dummy,
+                ),
+                subst,
+            )
+        }
+        (Type::FuncType(ident1, type11, type12, _), Type::FuncType(ident2, type21, type22, _)) => {
+            let mut subst = vec![];
+            let ident = Ident::fresh();
+            subst.push((ident1, ident));
+            subst.push((ident2, ident));
+            let ident_var = Term::Var(ident, Info::Dummy);
+            let type11 = type11.subst(ident1, &ident_var);
+            let type12 = type12.subst(ident1, &ident_var);
+            let type21 = type21.subst(ident2, &ident_var);
+            let type22 = type22.subst(ident2, &ident_var);
+            let (type1, mut subst_) = make_and_type(type11, type21);
+            subst.append(&mut subst_);
+            let (type2, mut subst_) = make_or_type(type12, type22);
+            subst.append(&mut subst_);
+            (
+                Type::FuncType(ident, Box::new(type1), Box::new(type2), Info::Dummy),
+                subst,
+            )
+        }
+        _ => unreachable!(),
     }
 }
 

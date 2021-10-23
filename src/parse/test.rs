@@ -35,6 +35,7 @@ fn parse_program_test() {
                             )),
                             Info::Dummy,
                         ),
+                        params_len: 1,
                         is_rec: false,
                         body: Expr::Num(1, Info::Dummy),
                         info: Info::Dummy,
@@ -54,6 +55,7 @@ fn parse_program_test() {
                             )),
                             Info::Dummy,
                         ),
+                        params_len: 1,
                         is_rec: false,
                         body: Expr::Num(2, Info::Dummy),
                         info: Info::Dummy,
@@ -100,6 +102,7 @@ fn parse_func_test() {
                     )),
                     Info::Dummy
                 ),
+                params_len: 1,
                 is_rec: true,
                 body: Expr::Num(1, Info::Dummy),
                 info: Info::Dummy
@@ -144,6 +147,7 @@ fn parse_func_test() {
                     )),
                     Info::Dummy
                 ),
+                params_len: 2,
                 is_rec: false,
                 body: Expr::Var(Ident { id: init_id + 1 }, Info::Dummy),
                 info: Info::Dummy

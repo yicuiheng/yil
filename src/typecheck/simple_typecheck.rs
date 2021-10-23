@@ -17,9 +17,14 @@ fn check_func(func: &Func, type_env: &SimpleTypeEnv) -> Result<(), TypeError> {
     let mut type_env = type_env.clone();
 
     let mut ret_type = &func.typ;
+    let mut count = func.params_len;
     while let Type::FuncType(_, from_type, to_type, _) = ret_type {
+        if count == 0 {
+            break;
+        }
         type_env.insert(from_type.ident(), SimpleType::from(&**from_type));
         ret_type = to_type;
+        count -= 1;
     }
 
     let (actual_ret_type, start, end) = check_expr(&func.body, &type_env)?;
