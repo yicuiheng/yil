@@ -1,0 +1,8 @@
+rec func hoge (x: int | x >= 1): (y: int | y >= 2) = x + 1
+
+rec func fuga (x: int | x >= -1): (y: int | y >= 3) = x + 4
+
+rec func piyo (x: int | true): (f: (x_1: int | x_1 >= 1) -> (y: int | y >= 3)) =
+  ifz x { hoge }
+  else { fuga }
+

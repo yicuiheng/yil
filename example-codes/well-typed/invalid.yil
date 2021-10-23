@@ -1,1 +1,0 @@
-rec func hoge (a:int | a >= 0) : (ret:int | ret >= a + 3)  = a + 2
