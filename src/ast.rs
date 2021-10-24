@@ -192,6 +192,18 @@ impl From<&Type> for SimpleType {
     }
 }
 
+impl From<Type> for SimpleType {
+    fn from(typ: Type) -> SimpleType {
+        match typ {
+            Type::FuncType(_, type1, type2, _) => SimpleType::FuncType(
+                Box::new(SimpleType::from(*type1)),
+                Box::new(SimpleType::from(*type2)),
+            ),
+            Type::IntType(_, _, _) => SimpleType::IntType,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct Func {
     pub typ: Type,

@@ -41,7 +41,10 @@ fn check_func(func: &Func, type_env: &SimpleTypeEnv) -> Result<(), TypeError> {
     }
 }
 
-fn check_expr(expr: &Expr, type_env: &SimpleTypeEnv) -> Result<(SimpleType, Pos, Pos), TypeError> {
+pub fn check_expr(
+    expr: &Expr,
+    type_env: &SimpleTypeEnv,
+) -> Result<(SimpleType, Pos, Pos), TypeError> {
     let (start, end) = expr.info().as_range();
     match expr {
         Expr::Num(_, _) => Ok((SimpleType::IntType, start, end)),

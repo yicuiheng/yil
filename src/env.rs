@@ -56,7 +56,17 @@ impl<T: std::fmt::Debug> Env<T> {
     }
 }
 
-impl Env<String> {
+impl From<TypeEnv> for SimpleTypeEnv {
+    fn from(type_env: TypeEnv) -> SimpleTypeEnv {
+        let mut simple_type_env = SimpleTypeEnv::empty();
+        for (ident, typ) in type_env.0 {
+            simple_type_env.insert(ident, SimpleType::from(typ))
+        }
+        simple_type_env
+    }
+}
+
+impl NameEnv {
     pub fn print(&self) {
         eprintln!("NameEnv {{");
         for (ident, name) in &self.0 {
