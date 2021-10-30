@@ -64,10 +64,7 @@ pub fn rule_to_str(rule: &Rule) -> &'static str {
         Rule::kw_false => "'false'",
         Rule::EOI => "<eof>",
 
-        rule => {
-            eprintln!("{:?}", rule);
-            unreachable!()
-        }
+        _ => unreachable!(),
     }
 }
 

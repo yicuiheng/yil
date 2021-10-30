@@ -1,5 +1,5 @@
 mod calc_constraints;
-mod constraints;
+mod constraint;
 pub mod error;
 mod simple_typecheck;
 mod test;
@@ -43,14 +43,16 @@ fn typecheck_func(func: &Func, common_type_env: TypeEnv) -> Result<(), TypeError
     let (body_ret_type, type_env) = calc_constraints::expr(&func.body, &type_env, &mut constraints);
 
     let body_range = func.body.info().as_range();
-    constraints::add_subtype_constraint(
+    let ret_type_range = ret_type.info().as_range();
+    constraint::add_subtype_constraint(
         &body_ret_type,
         &ret_type,
         &type_env,
         &mut constraints,
+        ret_type_range,
         body_range,
     );
-    constraints::solve_constraints(constraints)?;
+    constraint::solve_constraints(constraints)?;
 
     Ok(())
 }
@@ -59,7 +61,7 @@ fn typecheck_func(func: &Func, common_type_env: TypeEnv) -> Result<(), TypeError
 pub fn typecheck_expr(
     expr: &Expr,
     type_env: &TypeEnv,
-    constraints: &mut Vec<(logic::Term, (Pos, Pos))>,
+    constraints: &mut Vec<constraint::Constraint>,
 ) -> Result<(Type, TypeEnv), TypeError> {
     use crate::env::SimpleTypeEnv;
     let simple_type_env = SimpleTypeEnv::from(type_env.clone());

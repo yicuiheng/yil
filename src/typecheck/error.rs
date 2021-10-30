@@ -1,4 +1,5 @@
-use crate::{ast::*, env::NameEnv, error_report_util::write_lines_in_range, smt::error::SmtError};
+use crate::{ast::*, env::NameEnv, error_report_util::write_lines_in_range};
+use std::collections::HashMap;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum TypeError {
@@ -19,14 +20,11 @@ pub enum TypeError {
         actual: SimpleType,
         range: (Pos, Pos),
     },
-    NotValidConstraint(logic::Term, (Pos, Pos)),
-    SmtError(SmtError),
-}
-
-impl From<SmtError> for TypeError {
-    fn from(item: SmtError) -> Self {
-        Self::SmtError(item)
-    }
+    NotValidConstraint {
+        counter_examples: HashMap<Ident, logic::Term>,
+        spec_range: (Pos, Pos),
+        impl_range: (Pos, Pos),
+    },
 }
 
 use std::io::{stderr, BufWriter, Write};
@@ -65,14 +63,23 @@ impl TypeError {
                 write_lines_in_range(out, src, range)?;
                 writeln!(out, "here")
             }
-            TypeError::NotValidConstraint(term, range) => {
-                writeln!(out, "given constraint is not valid")?;
-                writeln!(out, "constraint: {}", term.to_readable_string(name_env))?;
-                write_lines_in_range(out, src, range)?;
-                writeln!(out, "generated from here")
-            }
-            TypeError::SmtError(_err) => {
-                todo!()
+            TypeError::NotValidConstraint {
+                counter_examples,
+                spec_range,
+                impl_range,
+            } => {
+                writeln!(out, "given implementation does not satisfy specification")?;
+                write_lines_in_range(out, src, impl_range)?;
+                writeln!(out, " implementation")?;
+                write_lines_in_range(out, src, spec_range)?;
+                writeln!(out, " specification")?;
+                writeln!(out, "\ncounter example [")?;
+                for (ident, term) in counter_examples {
+                    if let Some(name) = name_env.try_lookup(*ident) {
+                        writeln!(out, "  {} = {},", name, term.to_readable_string(name_env))?;
+                    }
+                }
+                writeln!(out, "]")
             }
         }
     }

@@ -10,15 +10,17 @@ fn check_well_typed_expr(e: Expr, typ: Type, type_env: &TypeEnv) {
     let mut constraints = vec![];
     let (typ_, type_env) = typecheck_expr(&e, &type_env, &mut constraints).unwrap();
     let dummy_pos = Pos { line: 0, col: 0 };
-    constraints::add_subtype_constraint(
+    let dummy_range = (dummy_pos, dummy_pos);
+    constraint::add_subtype_constraint(
         &typ_,
         &typ,
         &type_env,
         &mut constraints,
-        (dummy_pos, dummy_pos),
+        dummy_range,
+        dummy_range,
     );
 
-    assert_eq!(constraints::solve_constraints(constraints), Ok(()));
+    assert_eq!(constraint::solve_constraints(constraints), Ok(()));
 }
 
 #[cfg(test)]
@@ -26,14 +28,16 @@ fn check_ill_typed_expr(e: Expr, typ: Type, type_env: &TypeEnv) {
     let mut constraints = vec![];
     let (typ_, type_env) = typecheck_expr(&e, &type_env, &mut constraints).unwrap();
     let dummy_pos = Pos { line: 0, col: 0 };
-    constraints::add_subtype_constraint(
+    let dummy_range = (dummy_pos, dummy_pos);
+    constraint::add_subtype_constraint(
         &typ_,
         &typ,
         &type_env,
         &mut constraints,
-        (dummy_pos, dummy_pos),
+        dummy_range,
+        dummy_range,
     );
-    if let Ok(_) = constraints::solve_constraints(constraints) {
+    if let Ok(_) = constraint::solve_constraints(constraints) {
         panic!()
     }
 }

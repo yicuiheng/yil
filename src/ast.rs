@@ -17,6 +17,8 @@ pub enum Info {
     Dummy,
 }
 
+pub type Range = (Pos, Pos);
+
 impl PartialEq for Info {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
@@ -53,6 +55,7 @@ impl Info {
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
 pub struct Ident {
     pub id: usize,
+    pub is_builtin: bool,
 }
 
 static FRESH_IDENT_COUNT: AtomicUsize = AtomicUsize::new(0);
@@ -60,7 +63,25 @@ static FRESH_IDENT_COUNT: AtomicUsize = AtomicUsize::new(0);
 impl Ident {
     pub fn fresh() -> Self {
         let id = FRESH_IDENT_COUNT.fetch_add(1, SeqCst);
-        Self { id }
+        Self {
+            id,
+            is_builtin: false,
+        }
+    }
+
+    pub fn builtin_fresh() -> Self {
+        let id = FRESH_IDENT_COUNT.fetch_add(1, SeqCst);
+        Self {
+            id,
+            is_builtin: true,
+        }
+    }
+
+    pub fn with_id(id: usize) -> Self {
+        Self {
+            id,
+            is_builtin: false,
+        }
     }
 
     pub fn logical_symbol(&self) -> String {
