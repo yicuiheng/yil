@@ -9,19 +9,22 @@ mod parse;
 mod smt;
 mod typecheck;
 
-use clap::{AppSettings, Clap};
-
-#[derive(Clap)]
-#[clap(version = "1.0", author = "yicuiheng <yicuiheng@gmail.com>")]
-#[clap(setting = AppSettings::ColoredHelp)]
-struct Opts {
-    filename: String,
-}
+use clap::{App, Arg};
 
 fn main() {
-    let opts = Opts::parse();
+    let matches = App::new("yil")
+        .version("1.0")
+        .author("yicuiheng <yicuiheng@gmail.com>")
+        .about("a language with refinement types")
+        .arg(Arg::with_name("filename").required(true).index(1))
+        .get_matches();
 
-    let src = std::fs::read_to_string(opts.filename).expect("failed to read file..");
+    let filename = matches.value_of("filename").unwrap_or_else(|| {
+        eprintln!("{}", matches.usage());
+        std::process::exit(1);
+    });
+
+    let src = std::fs::read_to_string(filename).expect("failed to read file..");
     let src_lines: Vec<&str> = src.lines().collect();
 
     let (program, name_env) = parse::program(src.as_str()).unwrap_or_else(|err| {

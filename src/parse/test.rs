@@ -22,14 +22,14 @@ fn parse_program_test() {
                 funcs: vec![
                     Func {
                         typ: Type::FuncType(
-                            Ident { id: init_id },
+                            Ident::with_id(init_id),
                             Box::new(Type::IntType(
-                                Ident { id: init_id + 2 },
+                                Ident::with_id(init_id + 2),
                                 logic::Term::True(Info::Dummy),
                                 Info::Dummy
                             )),
                             Box::new(Type::IntType(
-                                Ident { id: init_id + 3 },
+                                Ident::with_id(init_id + 3),
                                 logic::Term::True(Info::Dummy),
                                 Info::Dummy
                             )),
@@ -42,14 +42,14 @@ fn parse_program_test() {
                     },
                     Func {
                         typ: Type::FuncType(
-                            Ident { id: init_id + 1 },
+                            Ident::with_id(init_id + 1),
                             Box::new(Type::IntType(
-                                Ident { id: init_id + 4 },
+                                Ident::with_id(init_id + 4),
                                 logic::Term::False(Info::Dummy),
                                 Info::Dummy
                             )),
                             Box::new(Type::IntType(
-                                Ident { id: init_id + 5 },
+                                Ident::with_id(init_id + 5),
                                 logic::Term::False(Info::Dummy),
                                 Info::Dummy
                             )),
@@ -64,12 +64,12 @@ fn parse_program_test() {
                 info: Info::Dummy,
             },
             vec![
-                (Ident { id: init_id }, "hoge".to_string()),
-                (Ident { id: init_id + 1 }, "fuga".to_string()),
-                (Ident { id: init_id + 2 }, "x".to_string()),
-                (Ident { id: init_id + 3 }, "y".to_string()),
-                (Ident { id: init_id + 4 }, "a".to_string()),
-                (Ident { id: init_id + 5 }, "b".to_string()),
+                (Ident::with_id(init_id), "hoge".to_string()),
+                (Ident::with_id(init_id + 1), "fuga".to_string()),
+                (Ident::with_id(init_id + 2), "x".to_string()),
+                (Ident::with_id(init_id + 3), "y".to_string()),
+                (Ident::with_id(init_id + 4), "a".to_string()),
+                (Ident::with_id(init_id + 5), "b".to_string()),
             ]
             .into_iter()
             .collect()
@@ -89,14 +89,14 @@ fn parse_func_test() {
         (
             Func {
                 typ: Type::FuncType(
-                    Ident { id: init_id },
+                    Ident::with_id(init_id),
                     Box::new(Type::IntType(
-                        Ident { id: init_id + 1 },
+                        Ident::with_id(init_id + 1),
                         logic::Term::True(Info::Dummy),
                         Info::Dummy
                     )),
                     Box::new(Type::IntType(
-                        Ident { id: init_id + 2 },
+                        Ident::with_id(init_id + 2),
                         logic::Term::True(Info::Dummy),
                         Info::Dummy
                     )),
@@ -108,9 +108,9 @@ fn parse_func_test() {
                 info: Info::Dummy
             },
             vec![
-                (Ident { id: init_id }, "hoge".to_string()),
-                (Ident { id: init_id + 1 }, "x".to_string()),
-                (Ident { id: init_id + 2 }, "y".to_string())
+                (Ident::with_id(init_id), "hoge".to_string()),
+                (Ident::with_id(init_id + 1), "x".to_string()),
+                (Ident::with_id(init_id + 2), "y".to_string())
             ]
             .into_iter()
             .collect()
@@ -125,21 +125,21 @@ fn parse_func_test() {
         (
             Func {
                 typ: Type::FuncType(
-                    Ident { id: init_id },
+                    Ident::with_id(init_id),
                     Box::new(Type::IntType(
-                        Ident { id: init_id + 1 },
+                        Ident::with_id(init_id + 1),
                         logic::Term::True(Info::Dummy),
                         Info::Dummy
                     )),
                     Box::new(Type::FuncType(
-                        Ident { id: init_id + 4 },
+                        Ident::with_id(init_id + 4),
                         Box::new(Type::IntType(
-                            Ident { id: init_id + 2 },
+                            Ident::with_id(init_id + 2),
                             logic::Term::True(Info::Dummy),
                             Info::Dummy
                         )),
                         Box::new(Type::IntType(
-                            Ident { id: init_id + 3 },
+                            Ident::with_id(init_id + 3),
                             logic::Term::True(Info::Dummy),
                             Info::Dummy
                         )),
@@ -149,14 +149,14 @@ fn parse_func_test() {
                 ),
                 params_len: 2,
                 is_rec: false,
-                body: Expr::Var(Ident { id: init_id + 1 }, Info::Dummy),
+                body: Expr::Var(Ident::with_id(init_id + 1), Info::Dummy),
                 info: Info::Dummy
             },
             vec![
-                (Ident { id: init_id }, "hoge".to_string()),
-                (Ident { id: init_id + 1 }, "x".to_string()),
-                (Ident { id: init_id + 2 }, "y".to_string()),
-                (Ident { id: init_id + 3 }, "z".to_string())
+                (Ident::with_id(init_id), "hoge".to_string()),
+                (Ident::with_id(init_id + 1), "x".to_string()),
+                (Ident::with_id(init_id + 2), "y".to_string()),
+                (Ident::with_id(init_id + 3), "z".to_string())
             ]
             .into_iter()
             .collect()
@@ -176,16 +176,16 @@ fn parse_type_test() {
         actual,
         (
             Type::IntType(
-                Ident { id: init_id },
+                Ident::with_id(init_id),
                 logic::Term::Bin(
                     logic::BinOp::Geq,
-                    Box::new(logic::Term::Var(Ident { id: init_id }, Info::Dummy)),
+                    Box::new(logic::Term::Var(Ident::with_id(init_id), Info::Dummy)),
                     Box::new(logic::Term::Num(0, Info::Dummy)),
                     Info::Dummy
                 ),
                 Info::Dummy
             ),
-            vec![(Ident { id: init_id }, "n".to_string())]
+            vec![(Ident::with_id(init_id), "n".to_string())]
                 .into_iter()
                 .collect()
         )
@@ -198,23 +198,23 @@ fn parse_type_test() {
         actual,
         (
             Type::FuncType(
-                Ident { id: init_id },
+                Ident::with_id(init_id),
                 Box::new(Type::IntType(
-                    Ident { id: init_id + 1 },
+                    Ident::with_id(init_id + 1),
                     logic::Term::True(Info::Dummy),
                     Info::Dummy
                 )),
                 Box::new(Type::IntType(
-                    Ident { id: init_id + 2 },
+                    Ident::with_id(init_id + 2),
                     logic::Term::True(Info::Dummy),
                     Info::Dummy
                 )),
                 Info::Dummy
             ),
             vec![
-                (Ident { id: init_id }, "f".to_string()),
-                (Ident { id: init_id + 1 }, "x".to_string()),
-                (Ident { id: init_id + 2 }, "y".to_string()),
+                (Ident::with_id(init_id), "f".to_string()),
+                (Ident::with_id(init_id + 1), "x".to_string()),
+                (Ident::with_id(init_id + 2), "y".to_string()),
             ]
             .into_iter()
             .collect()
@@ -228,21 +228,21 @@ fn parse_type_test() {
         actual,
         (
             Type::FuncType(
-                Ident { id: init_id },
+                Ident::with_id(init_id),
                 Box::new(Type::IntType(
-                    Ident { id: init_id + 1 },
+                    Ident::with_id(init_id + 1),
                     logic::Term::True(Info::Dummy),
                     Info::Dummy
                 )),
                 Box::new(Type::FuncType(
-                    Ident { id: init_id + 4 },
+                    Ident::with_id(init_id + 4),
                     Box::new(Type::IntType(
-                        Ident { id: init_id + 2 },
+                        Ident::with_id(init_id + 2),
                         logic::Term::True(Info::Dummy),
                         Info::Dummy
                     )),
                     Box::new(Type::IntType(
-                        Ident { id: init_id + 3 },
+                        Ident::with_id(init_id + 3),
                         logic::Term::True(Info::Dummy),
                         Info::Dummy
                     )),
@@ -251,10 +251,10 @@ fn parse_type_test() {
                 Info::Dummy
             ),
             vec![
-                (Ident { id: init_id }, "f".to_string()),
-                (Ident { id: init_id + 1 }, "x".to_string()),
-                (Ident { id: init_id + 2 }, "y".to_string()),
-                (Ident { id: init_id + 3 }, "z".to_string()),
+                (Ident::with_id(init_id), "f".to_string()),
+                (Ident::with_id(init_id + 1), "x".to_string()),
+                (Ident::with_id(init_id + 2), "y".to_string()),
+                (Ident::with_id(init_id + 3), "z".to_string()),
             ]
             .into_iter()
             .collect()
@@ -354,18 +354,18 @@ fn parse_expr_test() {
         expr("let a = 0 in let b = 1 in a + b").unwrap(),
         (
             Expr::Let(
-                Ident { id: init_id },
+                Ident::with_id(init_id),
                 Box::new(Expr::Num(0, Info::Dummy)),
                 Box::new(Expr::Let(
-                    Ident { id: init_id + 1 },
+                    Ident::with_id(init_id + 1),
                     Box::new(Expr::Num(1, Info::Dummy)),
                     Box::new(Expr::App(
                         Box::new(Expr::App(
                             Box::new(Expr::Var(builtin.add_ident, Info::Dummy)),
-                            Box::new(Expr::Var(Ident { id: init_id }, Info::Dummy)),
+                            Box::new(Expr::Var(Ident::with_id(init_id), Info::Dummy)),
                             Info::Dummy
                         )),
-                        Box::new(Expr::Var(Ident { id: init_id + 1 }, Info::Dummy)),
+                        Box::new(Expr::Var(Ident::with_id(init_id + 1), Info::Dummy)),
                         Info::Dummy
                     )),
                     Info::Dummy
@@ -373,8 +373,8 @@ fn parse_expr_test() {
                 Info::Dummy
             ),
             vec![
-                (Ident { id: init_id }, "a".to_string()),
-                (Ident { id: init_id + 1 }, "b".to_string())
+                (Ident::with_id(init_id), "a".to_string()),
+                (Ident::with_id(init_id + 1), "b".to_string())
             ]
             .into_iter()
             .collect()
@@ -386,19 +386,19 @@ fn parse_expr_test() {
         expr("let a = let b = 1 in b in a").unwrap(),
         (
             Expr::Let(
-                Ident { id: init_id },
+                Ident::with_id(init_id),
                 Box::new(Expr::Let(
-                    Ident { id: init_id + 1 },
+                    Ident::with_id(init_id + 1),
                     Box::new(Expr::Num(1, Info::Dummy)),
-                    Box::new(Expr::Var(Ident { id: init_id + 1 }, Info::Dummy)),
+                    Box::new(Expr::Var(Ident::with_id(init_id + 1), Info::Dummy)),
                     Info::Dummy
                 )),
-                Box::new(Expr::Var(Ident { id: init_id }, Info::Dummy)),
+                Box::new(Expr::Var(Ident::with_id(init_id), Info::Dummy)),
                 Info::Dummy
             ),
             vec![
-                (Ident { id: init_id }, "a".to_string()),
-                (Ident { id: init_id + 1 }, "b".to_string()),
+                (Ident::with_id(init_id), "a".to_string()),
+                (Ident::with_id(init_id + 1), "b".to_string()),
             ]
             .into_iter()
             .collect()

@@ -1,14 +1,10 @@
 use crate::{
-    ast::{logic::*, Expr, Ident, Info, Pos, Type},
+    ast::{logic::*, Expr, Ident, Info, Type},
     env::TypeEnv,
-    typecheck::constraints::add_subtype_constraint,
+    typecheck::constraint::{add_subtype_constraint, Constraint},
 };
 
-pub fn expr(
-    e: &Expr,
-    type_env: &TypeEnv,
-    constraints: &mut Vec<(Term, (Pos, Pos))>,
-) -> (Type, TypeEnv) {
+pub fn expr(e: &Expr, type_env: &TypeEnv, constraints: &mut Vec<Constraint>) -> (Type, TypeEnv) {
     match e {
         Expr::Num(n, _) => number(*n, type_env),
         Expr::Var(ident, _) => var_expr(ident, type_env),
@@ -44,7 +40,7 @@ fn ifz_expr(
     e1: &Expr,
     e2: &Expr,
     type_env: &TypeEnv,
-    constraints: &mut Vec<(Term, (Pos, Pos))>,
+    constraints: &mut Vec<Constraint>,
 ) -> (Type, TypeEnv) {
     if let (Type::IntType(cond_ident, cond_term, _), type_env) = expr(cond, type_env, constraints) {
         let dummy_ident = Ident::fresh();
@@ -265,7 +261,7 @@ fn let_expr(
     e1: &Expr,
     e2: &Expr,
     type_env: &TypeEnv,
-    constraints: &mut Vec<(Term, (Pos, Pos))>,
+    constraints: &mut Vec<Constraint>,
 ) -> (Type, TypeEnv) {
     let (e1_type, mut type_env) = expr(e1, type_env, constraints);
     type_env.insert(*ident, e1_type.clone());
@@ -279,19 +275,28 @@ fn let_expr(
 fn app_expr(
     func: &Expr,
     arg: &Expr,
-    _info: &Info,
+    info: &Info,
     type_env: &TypeEnv,
-    constraints: &mut Vec<(Term, (Pos, Pos))>,
+    constraints: &mut Vec<Constraint>,
 ) -> (Type, TypeEnv) {
     use crate::ast::Node;
-    let (start, _) = func.info().as_range();
-    let (_, end) = arg.info().as_range();
+    let impl_range = info.as_range();
 
     let (func_type, type_env) = expr(func, type_env, constraints);
     let (arg_type, mut type_env) = expr(arg, &type_env, constraints);
     match func_type {
-        Type::FuncType(_, from_type, to_type, _) => {
-            add_subtype_constraint(&arg_type, &from_type, &type_env, constraints, (start, end));
+        Type::FuncType(func_ident, from_type, to_type, _) => {
+            if !func_ident.is_builtin {
+                let spec_range = from_type.info().as_range();
+                add_subtype_constraint(
+                    &arg_type,
+                    &from_type,
+                    &type_env,
+                    constraints,
+                    spec_range,
+                    impl_range,
+                );
+            }
             let arg_ident = arg_type.ident();
             type_env.insert(arg_ident, arg_type);
             let ret_type = to_type.subst(from_type.ident(), &Term::Var(arg_ident, Info::Dummy));
