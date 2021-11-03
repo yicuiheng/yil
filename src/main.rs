@@ -3,6 +3,7 @@ extern crate pest;
 extern crate pest_derive;
 
 mod ast;
+mod codegen;
 mod env;
 mod error_report_util;
 mod parse;
@@ -35,5 +36,5 @@ fn main() {
         err.print(&name_env, &src_lines).unwrap();
         std::process::exit(-1);
     });
-    println!("well typed!");
+    codegen::program(program, &name_env);
 }

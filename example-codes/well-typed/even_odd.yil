@@ -9,3 +9,6 @@ rec func is_odd (n:int | n >= 0) :
   
   ifz n { 1 }
   else { is_even (n - 1) }
+
+ rec func main (a:int | true): (ret:int | true) =
+   is_even 42

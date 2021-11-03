@@ -225,6 +225,29 @@ impl From<Type> for SimpleType {
     }
 }
 
+impl SimpleType {
+    pub fn is_func(&self) -> bool {
+        match self {
+            SimpleType::FuncType(_, _) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_int(&self) -> bool {
+        match self {
+            SimpleType::IntType => true,
+            _ => false,
+        }
+    }
+
+    pub fn as_func(&self) -> (&SimpleType, &SimpleType) {
+        match self {
+            SimpleType::FuncType(type1, type2) => (type1, type2),
+            _ => unreachable!(),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct Func {
     pub typ: Type,

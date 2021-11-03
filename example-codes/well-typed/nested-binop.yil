@@ -1,2 +1,2 @@
-rec func hoge (a: int | true): (ret: int | ret = 0) =
+rec func main (a: int | true): (ret: int | ret = 0) =
     (1 + 2) >= 3
