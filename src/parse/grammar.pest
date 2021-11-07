@@ -41,6 +41,8 @@ apply_expr = { primary_expr+ }
 primary_expr = {
     ifz_expr |
     constant |
+    kw_true |
+    kw_false |
     variable |
     paren_expr
 }

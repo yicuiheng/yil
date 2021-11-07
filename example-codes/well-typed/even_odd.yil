@@ -1,13 +1,13 @@
 rec func is_even (n:int | n >= 0) :
   (ret: int | ((n % 2 = 0) => ret = true) && ((n %2 != 0) => ret = false)) =
 
-  ifz n { 0 }
+  ifz n { true }
   else { is_odd (n - 1) }
 
 rec func is_odd (n:int | n >= 0) :
   (ret: int | ((n % 2 = 0) => ret = false) && ((n %2 != 0) => ret = true)) =
   
-  ifz n { 1 }
+  ifz n { false }
   else { is_even (n - 1) }
 
 func main (a:int | true): (ret:int | true) =

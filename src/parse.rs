@@ -810,6 +810,8 @@ fn primary_expr_from_pair(
             Expr::Num(integer_constant_from_pair(pair), info),
             NameEnv::empty(),
         )),
+        Rule::kw_true => Ok((Expr::Num(0, info), NameEnv::empty())),
+        Rule::kw_false => Ok((Expr::Num(1, info), NameEnv::empty())),
         Rule::variable => variable_from_pair(pair, name_to_ident),
         Rule::paren_expr => paren_expr_from_pair(pair, name_to_ident),
         _ => unreachable!(),
