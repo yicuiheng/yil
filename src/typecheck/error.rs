@@ -68,9 +68,10 @@ impl TypeError {
                 spec_range,
                 impl_range,
             } => {
-                writeln!(out, "given implementation does not satisfy specification")?;
+                writeln!(out, "given implementation does not meet specification")?;
                 write_lines_in_range(out, src, impl_range)?;
                 writeln!(out, " implementation")?;
+                writeln!(out, "  vs.")?;
                 write_lines_in_range(out, src, spec_range)?;
                 writeln!(out, " specification")?;
                 writeln!(out, "\ncounter example [")?;
