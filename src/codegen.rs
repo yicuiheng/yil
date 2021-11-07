@@ -3,10 +3,13 @@ use std::convert::TryInto;
 use inkwell::{
     builder::Builder,
     context::Context,
-    module::Module,
+    module::{Linkage, Module},
     types::BasicMetadataTypeEnum,
     types::BasicTypeEnum,
-    values::{BasicMetadataValueEnum, BasicValueEnum, CallableValue, FunctionValue, PointerValue},
+    values::{
+        BasicMetadataValueEnum, BasicValue, BasicValueEnum, CallableValue, FunctionValue,
+        PointerValue,
+    },
     AddressSpace, IntPredicate, OptimizationLevel,
 };
 
@@ -26,11 +29,100 @@ impl<'a> CodegenHelper<'a> {
         let module = context.create_module("main");
         let builder = context.create_builder();
 
+        module.add_function(
+            "printf",
+            context.i32_type().fn_type(
+                &[context.i8_type().ptr_type(AddressSpace::Generic).into()],
+                true,
+            ),
+            Some(Linkage::External),
+        );
+
         Self {
             context,
             module,
             builder,
         }
+    }
+
+    fn builtin_value_env(&self) -> Env<PointerValue<'a>> {
+        let mut value_env = Env::empty();
+        let builtin = BuiltinData::instance();
+        value_env.insert(builtin.print_bool_ident, self.make_print_bool_func());
+        value_env
+    }
+
+    fn make_print_bool_func(&self) -> PointerValue<'a> {
+        /* in C language:
+         * ```
+         * int print_bool(int n) {
+         *     if (n == 0) {
+         *         printf("true");
+         *     } else {
+         *         printf("false");
+         *     }
+         * }
+         * ```
+         */
+        let func_type = self
+            .context
+            .i32_type()
+            .fn_type(&[self.context.i32_type().into()], false);
+        let func_name = "print_bool";
+        let function = self.module.add_function(func_name, func_type, None);
+
+        let entry_basic_block = self.context.append_basic_block(function, "entry");
+        self.builder.position_at_end(entry_basic_block);
+
+        let cond_value = self.builder.build_int_compare(
+            IntPredicate::EQ,
+            function.get_first_param().unwrap().into_int_value(),
+            self.context.i32_type().const_int(0, false),
+            "cond",
+        );
+        let then_block = self.context.append_basic_block(function, "then_block");
+        let else_block = self.context.append_basic_block(function, "else_block");
+        let merge_block = self.context.append_basic_block(function, "merge_block");
+        self.builder
+            .build_conditional_branch(cond_value, then_block, else_block);
+
+        let printf_function = self.module.get_function("printf").unwrap();
+
+        // then block
+        self.builder.position_at_end(then_block);
+        let true_string = self
+            .builder
+            .build_global_string_ptr("true", "builtin.string.true");
+        self.builder.build_call(
+            printf_function,
+            &[true_string.as_basic_value_enum().into()],
+            "",
+        );
+        let then_ret = self.context.i32_type().const_int(0, false);
+        self.builder.build_unconditional_branch(merge_block);
+        let then_block = self.builder.get_insert_block().unwrap();
+
+        // else block
+        self.builder.position_at_end(else_block);
+        let false_string = self
+            .builder
+            .build_global_string_ptr("false", "builtin.string.true");
+        self.builder.build_call(
+            printf_function,
+            &[false_string.as_basic_value_enum().into()],
+            "",
+        );
+        let else_ret = self.context.i32_type().const_int(0, false);
+        self.builder.build_unconditional_branch(merge_block);
+        let else_block = self.builder.get_insert_block().unwrap();
+
+        // merge block
+        self.builder.position_at_end(merge_block);
+        let phi = self.builder.build_phi(then_ret.get_type(), "phi");
+        phi.add_incoming(&[(&then_ret, then_block), (&else_ret, else_block)]);
+        self.builder.build_return(Some(&phi.as_basic_value()));
+
+        function.as_global_value().as_pointer_value()
     }
 
     fn add_function(&mut self, func: &Func, name_env: &NameEnv) -> FunctionValue<'a> {
@@ -174,7 +266,9 @@ impl<'a> CodegenHelper<'a> {
                 let args = args.into_iter().rev().collect();
 
                 match *e1 {
-                    Expr::Var(ident, _) if ident.is_builtin => self.build_builtin_call(ident, args),
+                    Expr::Var(ident, _) if ident.is_builtin => {
+                        self.build_builtin_call(ident, args, value_env)
+                    }
                     _ => {
                         let func_value: CallableValue = self
                             .build_expr(*e1, name_env, value_env, current_function)
@@ -196,6 +290,7 @@ impl<'a> CodegenHelper<'a> {
         &self,
         ident: Ident,
         args: Vec<BasicMetadataValueEnum<'a>>,
+        value_env: &Env<PointerValue<'a>>,
     ) -> BasicValueEnum<'a> {
         let builtin = BuiltinData::instance();
         if builtin.or_ident == ident {
@@ -280,23 +375,35 @@ impl<'a> CodegenHelper<'a> {
             self.builder
                 .build_int_signed_rem(args[0].into_int_value(), args[1].into_int_value(), "rem")
                 .into()
+        } else if builtin.print_bool_ident == ident {
+            let arg = args[0].into_int_value();
+            let func_value: CallableValue = value_env
+                .lookup(builtin.print_bool_ident)
+                .clone()
+                .try_into()
+                .unwrap();
+            self.builder
+                .build_call(func_value, &[arg.into()], "ret")
+                .try_as_basic_value()
+                .left()
+                .unwrap()
         } else {
             unimplemented!()
         }
     }
 
-    fn run(&self) {
+    fn run(&self) -> i32 {
         let execution_engine = self
             .module
             .create_jit_execution_engine(OptimizationLevel::Aggressive)
             .unwrap();
-        let result = unsafe {
+        let status = unsafe {
             execution_engine
-                .get_function::<unsafe extern "C" fn(i32) -> i32>("main")
+                .get_function::<unsafe extern "C" fn() -> i32>("main")
                 .unwrap()
-                .call(42)
+                .call()
         };
-        eprintln!("result: {}", result);
+        status
     }
 }
 
@@ -321,12 +428,12 @@ fn make_llvm_type_from_simple_type<'a>(
     }
 }
 
-pub fn program(program: Program, name_env: &NameEnv) {
+pub fn program(program: Program, name_env: &NameEnv) -> i32 {
     let context = Context::create();
     let mut helper = CodegenHelper::new(&context);
 
     let mut func_env = Env::empty();
-    let mut value_env = Env::empty();
+    let mut value_env = helper.builtin_value_env();
     for func in &program.funcs {
         let func_value = helper.add_function(func, name_env);
         func_env.insert(func.typ.ident(), func_value);
@@ -340,5 +447,5 @@ pub fn program(program: Program, name_env: &NameEnv) {
         helper.build_function_body(func, name_env, &func_env, &mut value_env);
     }
 
-    helper.run();
+    helper.run()
 }

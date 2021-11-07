@@ -64,6 +64,7 @@ fn parse_program_test() {
                 info: Info::Dummy,
             },
             vec![
+                (Ident::builtin_ident_with_id(13), "print_bool".to_string()),
                 (Ident::with_id(init_id), "hoge".to_string()),
                 (Ident::with_id(init_id + 1), "fuga".to_string()),
                 (Ident::with_id(init_id + 2), "x".to_string()),

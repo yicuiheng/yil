@@ -89,6 +89,14 @@ impl Ident {
     }
 
     #[cfg(test)]
+    pub fn builtin_ident_with_id(id: usize) -> Self {
+        Self {
+            id,
+            is_builtin: true,
+        }
+    }
+
+    #[cfg(test)]
     pub fn current_count() -> usize {
         FRESH_IDENT_COUNT.load(SeqCst)
     }

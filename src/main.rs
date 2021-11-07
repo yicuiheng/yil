@@ -36,5 +36,5 @@ fn main() {
         err.print(&name_env, &src_lines).unwrap();
         std::process::exit(-1);
     });
-    codegen::program(program, &name_env);
+    std::process::exit(codegen::program(program, &name_env));
 }

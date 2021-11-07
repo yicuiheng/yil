@@ -92,6 +92,11 @@ fn program_from_pair(pair: Pair<Rule>) -> Result<(Program, NameEnv), ParseError>
     let mut name_env = NameEnv::empty();
     let mut name_to_ident = HashMap::new();
 
+    // builtin functions
+    let builtin_data = builtin::BuiltinData::instance();
+    name_env.insert(builtin_data.print_bool_ident, "print_bool".to_string());
+    name_to_ident.insert("print_bool".to_string(), builtin_data.print_bool_ident);
+
     let mut func_later_pairss = vec![];
 
     while let Some(func_pair) = pairs.next() {
@@ -410,6 +415,8 @@ fn primary_term_from_pair(
             let n = integer_constant_from_pair(pair);
             Ok((logic::Term::Num(n, info), NameEnv::empty()))
         }
+        Rule::kw_true => Ok((logic::Term::Num(0, info), NameEnv::empty())),
+        Rule::kw_false => Ok((logic::Term::Num(1, info), NameEnv::empty())),
         Rule::left_paren => {
             let e = additive_term_from_pair(pairs.next().unwrap(), name_to_ident)?;
             assert_eq!(pairs.next().unwrap().as_rule(), Rule::right_paren);
