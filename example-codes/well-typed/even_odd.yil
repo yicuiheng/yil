@@ -1,11 +1,15 @@
 rec func is_even (n:int | n >= 0) :
-  (ret: int | ((n % 2 = 0) => ret = 0) && ((n %2 != 0) => ret = 1)) =
+  (ret: int | ((n % 2 = 0) => ret = true) && ((n %2 != 0) => ret = false)) =
 
   ifz n { 0 }
   else { is_odd (n - 1) }
 
 rec func is_odd (n:int | n >= 0) :
-  (ret: int | ((n % 2 = 0) => ret = 1) && ((n %2 != 0) => ret = 0)) =
+  (ret: int | ((n % 2 = 0) => ret = false) && ((n %2 != 0) => ret = true)) =
   
   ifz n { 1 }
   else { is_even (n - 1) }
+
+func main (a:int | true): (ret:int | true) =
+   let unused = print_bool (is_even 42) in
+   0

@@ -1,1 +1,1 @@
-rec func hoge (x:int | x >= 0) : (y:int | y >= x + 1) = x + 2
+rec func main (x:int | x >= 0) : (y:int | y >= x + 1) = x + 2

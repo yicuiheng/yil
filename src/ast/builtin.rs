@@ -21,6 +21,7 @@ pub struct BuiltinData {
     pub mult_ident: Ident,
     pub div_ident: Ident,
     pub rem_ident: Ident,
+    pub print_bool_ident: Ident,
 }
 
 impl std::iter::IntoIterator for &BuiltinData {
@@ -41,6 +42,7 @@ impl std::iter::IntoIterator for &BuiltinData {
             self.mult_ident,
             self.div_ident,
             self.rem_ident,
+            self.print_bool_ident,
         ]
         .into_iter()
     }
@@ -62,6 +64,7 @@ impl BuiltinData {
             mult_ident: Ident::builtin_fresh(),
             div_ident: Ident::builtin_fresh(),
             rem_ident: Ident::builtin_fresh(),
+            print_bool_ident: Ident::builtin_fresh(),
         })
     }
 
@@ -93,6 +96,8 @@ impl BuiltinData {
             Some("/")
         } else if inst.rem_ident == ident {
             Some("%")
+        } else if inst.print_bool_ident == ident {
+            Some("print_bool")
         } else {
             None
         }
@@ -126,6 +131,8 @@ fn simple_type_of(ident: Ident) -> Option<SimpleType> {
             Box::new(SimpleType::IntType),
         )),
     );
+    let print_bool_simple_type =
+        SimpleType::FuncType(Box::new(SimpleType::IntType), Box::new(SimpleType::IntType));
     Some(if inst.or_ident == ident {
         binop_simple_type
     } else if inst.and_ident == ident {
@@ -152,6 +159,8 @@ fn simple_type_of(ident: Ident) -> Option<SimpleType> {
         binop_simple_type
     } else if inst.rem_ident == ident {
         binop_simple_type
+    } else if inst.print_bool_ident == ident {
+        print_bool_simple_type
     } else {
         return None;
     })
@@ -159,6 +168,27 @@ fn simple_type_of(ident: Ident) -> Option<SimpleType> {
 
 fn type_of(ident: Ident) -> Option<Type> {
     let inst = BuiltinData::instance();
+
+    if inst.print_bool_ident == ident {
+        let func_ident = Ident::builtin_fresh();
+        let arg_ident = Ident::builtin_fresh();
+        let ret_ident = Ident::builtin_fresh();
+        return Some(Type::FuncType(
+            func_ident,
+            Box::new(Type::IntType(
+                arg_ident,
+                Term::True(Info::Dummy),
+                Info::Dummy,
+            )),
+            Box::new(Type::IntType(
+                ret_ident,
+                Term::True(Info::Dummy),
+                Info::Dummy,
+            )),
+            Info::Dummy,
+        ));
+    }
+
     let arg1_ident = Ident::builtin_fresh();
     let arg2_ident = Ident::builtin_fresh();
     let ret_ident = Ident::builtin_fresh();

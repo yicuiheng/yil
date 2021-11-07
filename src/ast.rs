@@ -89,6 +89,14 @@ impl Ident {
     }
 
     #[cfg(test)]
+    pub fn builtin_ident_with_id(id: usize) -> Self {
+        Self {
+            id,
+            is_builtin: true,
+        }
+    }
+
+    #[cfg(test)]
     pub fn current_count() -> usize {
         FRESH_IDENT_COUNT.load(SeqCst)
     }
@@ -221,6 +229,29 @@ impl From<Type> for SimpleType {
                 Box::new(SimpleType::from(*type2)),
             ),
             Type::IntType(_, _, _) => SimpleType::IntType,
+        }
+    }
+}
+
+impl SimpleType {
+    pub fn is_func(&self) -> bool {
+        match self {
+            SimpleType::FuncType(_, _) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_int(&self) -> bool {
+        match self {
+            SimpleType::IntType => true,
+            _ => false,
+        }
+    }
+
+    pub fn as_func(&self) -> (&SimpleType, &SimpleType) {
+        match self {
+            SimpleType::FuncType(type1, type2) => (type1, type2),
+            _ => unreachable!(),
         }
     }
 }

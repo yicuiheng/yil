@@ -19,7 +19,7 @@ binop_term = {
     (left_paren ~ term ~ right_paren) }
 additive_term = { multive_term ~ ((plus | minus) ~ multive_term)* }
 multive_term = { primary_term ~ ((ast | slash | percent) ~ primary_term)* }
-primary_term = { name | constant | left_paren ~ additive_term ~ right_paren }
+primary_term = { name | constant | kw_true | kw_false | left_paren ~ additive_term ~ right_paren }
 
 expr = {
     let_expr |
