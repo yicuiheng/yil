@@ -47,6 +47,10 @@ impl<T: std::fmt::Debug> Env<T> {
         self.0.extend(other.0)
     }
 
+    pub fn drop(&mut self, ident: Ident) {
+        self.0.remove(&ident);
+    }
+
     pub fn lookup(&self, ident: Ident) -> &T {
         self.0.get(&ident).unwrap()
     }

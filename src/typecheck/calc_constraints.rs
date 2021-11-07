@@ -63,7 +63,8 @@ fn ifz_expr(
                 Info::Dummy,
             ),
         );
-        let (true_branch_type, type_env) = expr(e1, &true_branch_type_env, constraints);
+        let (true_branch_type, mut type_env) = expr(e1, &true_branch_type_env, constraints);
+        type_env.drop(dummy_ident);
 
         let mut false_branch_type_env = type_env;
         false_branch_type_env.insert(
@@ -84,7 +85,8 @@ fn ifz_expr(
                 Info::Dummy,
             ),
         );
-        let (false_branch_type, type_env) = expr(e2, &false_branch_type_env, constraints);
+        let (false_branch_type, mut type_env) = expr(e2, &false_branch_type_env, constraints);
+        type_env.drop(dummy_ident);
 
         make_ifz_type(cond_ident, true_branch_type, false_branch_type, type_env)
     } else {
