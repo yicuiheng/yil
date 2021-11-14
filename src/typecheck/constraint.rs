@@ -19,7 +19,7 @@ pub fn add_subtype_constraint(
             .clone()
             .into_iter()
             .fold(logic::Term::True(Info::Dummy), |acc, (_, typ)| {
-                if let Type::IntType(_, term, _) = typ {
+                if let Type::BaseType(_, _, term, _) = typ {
                     logic::Term::Bin(
                         logic::BinOp::And,
                         Box::new(acc),
@@ -32,7 +32,10 @@ pub fn add_subtype_constraint(
             });
 
     match (type1, type2) {
-        (Type::IntType(ident1, term1, _), Type::IntType(ident2, term2, _)) => {
+        (
+            Type::BaseType(ident1, base_type1, term1, _),
+            Type::BaseType(ident2, base_type2, term2, _),
+        ) if base_type1 == base_type2 => {
             let term1 = term1.clone();
             let term2 = term2
                 .clone()
@@ -97,5 +100,3 @@ pub fn solve_constraints(constraints: Vec<Constraint>) -> Result<(), TypeError> 
     }
     Ok(())
 }
-
-

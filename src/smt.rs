@@ -3,10 +3,7 @@ mod test;
 use std::collections::HashMap;
 use std::convert::TryInto;
 
-use z3::{
-    ast::{Ast, Bool, Int},
-    *,
-};
+use z3::{ast::Ast, *};
 
 use crate::ast::{
     logic::{BinOp, Term},
@@ -20,6 +17,12 @@ pub enum SmtResult {
     Valid,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+enum Const<'a> {
+    Bool(z3::ast::Bool<'a>),
+    Int(z3::ast::Int<'a>),
+}
+
 pub fn check_validity(term: Term) -> SmtResult {
     let config = Config::new();
     let context = Context::new(&config);
@@ -30,20 +33,38 @@ pub fn check_validity(term: Term) -> SmtResult {
     solver.assert(&ast);
 
     match solver.check() {
-        // SatResult::Sat if consts.is_empty() => SmtResult::Valid,
         SatResult::Sat => {
             let model = solver.get_model().unwrap();
             let mut counter_examples = HashMap::new();
-            for free_var in consts {
-                let value = model.eval(&free_var, true).unwrap().as_i64().unwrap();
-                let id = free_var.to_string()[1..].parse().unwrap();
-                counter_examples.insert(
-                    Ident {
-                        id,
-                        is_builtin: false,
-                    },
-                    Term::Num(value.try_into().unwrap(), Info::Dummy),
-                );
+            for const_ in consts {
+                match const_ {
+                    Const::Bool(bool_) => {
+                        let value = model.eval(&bool_, true).unwrap().as_bool().unwrap();
+                        let id = bool_.to_string()[1..].parse().unwrap();
+                        counter_examples.insert(
+                            Ident {
+                                id,
+                                is_builtin: false,
+                            },
+                            if value {
+                                Term::True(Info::Dummy)
+                            } else {
+                                Term::False(Info::Dummy)
+                            },
+                        );
+                    }
+                    Const::Int(int_) => {
+                        let value = model.eval(&int_, true).unwrap().as_i64().unwrap();
+                        let id = int_.to_string()[1..].parse().unwrap();
+                        counter_examples.insert(
+                            Ident {
+                                id,
+                                is_builtin: false,
+                            },
+                            Term::Num(value.try_into().unwrap(), Info::Dummy),
+                        );
+                    }
+                }
             }
             SmtResult::CounterExamplesFound(counter_examples)
         }
@@ -52,10 +73,15 @@ pub fn check_validity(term: Term) -> SmtResult {
     }
 }
 
-fn bool_from_term<'a>(term: Term, context: &'a Context) -> (Bool, Vec<Int<'a>>) {
+fn bool_from_term<'a>(term: Term, context: &'a Context) -> (z3::ast::Bool, Vec<Const<'a>>) {
+    use z3::ast::Bool;
     match term {
         Term::True(_) => (Bool::from_bool(context, true), vec![]),
         Term::False(_) => (Bool::from_bool(context, false), vec![]),
+        Term::Var(ident, _) => {
+            let new_const = Bool::new_const(context, ident.logical_symbol());
+            (new_const.clone(), vec![Const::Bool(new_const)])
+        }
         Term::Not(t, _) => {
             let (b, consts) = bool_from_term(*t, context);
             (b.not(), consts)
@@ -136,12 +162,13 @@ fn bool_from_term<'a>(term: Term, context: &'a Context) -> (Bool, Vec<Int<'a>>) 
     }
 }
 
-fn int_from_term<'a>(term: Term, context: &'a Context) -> (Int, Vec<Int<'a>>) {
+fn int_from_term<'a>(term: Term, context: &'a Context) -> (z3::ast::Int, Vec<Const<'a>>) {
+    use z3::ast::Int;
     match term {
         Term::Num(n, _) => (Int::from_i64(context, n.try_into().unwrap()), vec![]),
         Term::Var(v, _) => {
-            let new_var = Int::new_const(context, v.logical_symbol());
-            (new_var.clone(), vec![new_var])
+            let new_const = Int::new_const(context, v.logical_symbol());
+            (new_const.clone(), vec![Const::Int(new_const)])
         }
         Term::Bin(BinOp::Add, t1, t2, _) => {
             let mut consts = vec![];

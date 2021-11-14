@@ -55,8 +55,8 @@ impl<'a> CodegenHelper<'a> {
     fn make_print_bool_func(&self) -> PointerValue<'a> {
         /* in C language:
          * ```
-         * int print_bool(int n) {
-         *     if (n == 0) {
+         * int print_bool(bool b) {
+         *     if (bool) {
          *         printf("true");
          *     } else {
          *         printf("false");
@@ -67,24 +67,19 @@ impl<'a> CodegenHelper<'a> {
         let func_type = self
             .context
             .i32_type()
-            .fn_type(&[self.context.i32_type().into()], false);
+            .fn_type(&[self.context.bool_type().into()], false);
         let func_name = "print_bool";
         let function = self.module.add_function(func_name, func_type, None);
 
         let entry_basic_block = self.context.append_basic_block(function, "entry");
         self.builder.position_at_end(entry_basic_block);
 
-        let cond_value = self.builder.build_int_compare(
-            IntPredicate::EQ,
-            function.get_first_param().unwrap().into_int_value(),
-            self.context.i32_type().const_int(0, false),
-            "cond",
-        );
+        let cond_value = function.get_first_param().unwrap();
         let then_block = self.context.append_basic_block(function, "then_block");
         let else_block = self.context.append_basic_block(function, "else_block");
         let merge_block = self.context.append_basic_block(function, "merge_block");
         self.builder
-            .build_conditional_branch(cond_value, then_block, else_block);
+            .build_conditional_branch(cond_value.into_int_value(), then_block, else_block);
 
         let printf_function = self.module.get_function("printf").unwrap();
 
@@ -151,7 +146,7 @@ impl<'a> CodegenHelper<'a> {
         for param_value in function.get_param_iter() {
             let (param_type, func_type_) = match func_type {
                 Type::FuncType(_, type1, type2, _) => (*type1, *type2),
-                Type::IntType(_, _, _) => unreachable!(),
+                Type::BaseType(_, _, _, _) => unreachable!(),
             };
             func_type = func_type_;
             let param_ident = param_type.ident();
@@ -188,6 +183,11 @@ impl<'a> CodegenHelper<'a> {
             Expr::Num(n, _) => {
                 BasicValueEnum::IntValue(self.context.i32_type().const_int(n as u64, false))
             }
+            Expr::Boolean(b, _) => BasicValueEnum::IntValue(
+                self.context
+                    .bool_type()
+                    .const_int(if b { 1 } else { 0 } as u64, false),
+            ),
             Expr::Var(ident, _) => {
                 let var = value_env.lookup(ident).clone();
                 let name = format!("{}.load", name_env.lookup(ident));
@@ -197,14 +197,10 @@ impl<'a> CodegenHelper<'a> {
                     self.builder.build_load(var, name.as_str())
                 }
             }
-            Expr::Ifz(cond, then_expr, else_expr, _) => {
-                let cond_expr = self.build_expr(*cond, name_env, value_env, current_function);
-                let cond_value = self.builder.build_int_compare(
-                    IntPredicate::EQ,
-                    cond_expr.into_int_value(),
-                    self.context.i32_type().const_int(0, false),
-                    "cond",
-                );
+            Expr::If(cond, then_expr, else_expr, _) => {
+                let cond_value = self
+                    .build_expr(*cond, name_env, value_env, current_function)
+                    .into_int_value();
                 let then_block = self
                     .context
                     .append_basic_block(*current_function, "then_block");
@@ -392,6 +388,18 @@ impl<'a> CodegenHelper<'a> {
         }
     }
 
+    fn verify(&self) -> bool {
+        if let Err(msg) = self.module.verify() {
+            eprintln!("internal compiler error: {}", msg.to_string());
+            eprintln!("-=-=-=-=-=-=-=-=-");
+            eprintln!("generated llvm ir:");
+            self.module.print_to_stderr();
+            false
+        } else {
+            true
+        }
+    }
+
     fn run(&self) -> i32 {
         let execution_engine = self
             .module
@@ -417,11 +425,16 @@ fn make_llvm_type_from_simple_type<'a>(
         simple_type = to_type;
     }
 
+    let ret_type = match simple_type {
+        SimpleType::FuncType(_, _) => unreachable!(),
+        SimpleType::BaseType(BaseTypeKind::Int) => context.i32_type(),
+        SimpleType::BaseType(BaseTypeKind::Bool) => context.bool_type(),
+    };
+
     if param_types.is_empty() {
-        context.i32_type().into()
+        ret_type.into()
     } else {
-        context
-            .i32_type()
+        ret_type
             .fn_type(param_types.as_slice(), false)
             .ptr_type(AddressSpace::Generic)
             .into()
@@ -445,6 +458,10 @@ pub fn program(program: Program, name_env: &NameEnv) -> i32 {
 
     for func in program.funcs {
         helper.build_function_body(func, name_env, &func_env, &mut value_env);
+    }
+
+    if !helper.verify() {
+        return -1;
     }
 
     helper.run()

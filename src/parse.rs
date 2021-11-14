@@ -294,8 +294,8 @@ fn imply_term_from_pair(
     binop(
         pair.into_inner(),
         name_to_ident,
-        Rule::binop_term,
-        binop_term_from_pair,
+        Rule::not_term,
+        not_term_from_pair,
         HashMap::from_iter(IntoIter::new([(
             Rule::fat_arrow,
             (|_| logic::BinOp::Imply) as fn(Info) -> logic::BinOp,
@@ -304,20 +304,37 @@ fn imply_term_from_pair(
     )
 }
 
-fn binop_term_from_pair(
+fn not_term_from_pair(
     pair: Pair<Rule>,
     name_to_ident: &HashMap<String, Ident>,
 ) -> Result<(logic::Term, NameEnv), ParseError> {
-    assert_eq!(pair.as_rule(), Rule::binop_term);
+    assert_eq!(pair.as_rule(), Rule::not_term);
+    let info = pair_to_info(&pair);
+
+    let mut pairs = pair.into_inner();
+    let pair = pairs.next().unwrap();
+    match pair.as_rule() {
+        Rule::exclamation => {
+            let (inner, name_env) = binpred_term_from_pair(pairs.next().unwrap(), name_to_ident)?;
+            Ok((logic::Term::Not(Box::new(inner), info), name_env))
+        }
+        Rule::binpred_term => binpred_term_from_pair(pair, name_to_ident),
+        _ => unreachable!(),
+    }
+}
+
+fn binpred_term_from_pair(
+    pair: Pair<Rule>,
+    name_to_ident: &HashMap<String, Ident>,
+) -> Result<(logic::Term, NameEnv), ParseError> {
+    assert_eq!(pair.as_rule(), Rule::binpred_term);
     let info = pair_to_info(&pair);
 
     let mut pairs = pair.into_inner();
     Ok(match pairs.peek().unwrap().as_rule() {
-        Rule::kw_true => (logic::Term::True(info), NameEnv::empty()),
-        Rule::kw_false => (logic::Term::False(info), NameEnv::empty()),
         Rule::additive_term => {
             let mut name_env = NameEnv::empty();
-            let (expr1, name_env_) = additive_term_from_pair(pairs.next().unwrap(), name_to_ident)?;
+            let (term1, name_env_) = additive_term_from_pair(pairs.next().unwrap(), name_to_ident)?;
             name_env.append(name_env_);
             let op_pair = pairs.next().unwrap();
             let op_info = pair_to_info(&op_pair);
@@ -330,10 +347,10 @@ fn binop_term_from_pair(
                 Rule::geq => logic::BinOp::Geq,
                 _ => unreachable!(),
             };
-            let (expr2, name_env_) = additive_term_from_pair(pairs.next().unwrap(), name_to_ident)?;
+            let (term2, name_env_) = additive_term_from_pair(pairs.next().unwrap(), name_to_ident)?;
             name_env.append(name_env_);
             (
-                logic::Term::Bin(op, Box::new(expr1), Box::new(expr2), op_info),
+                logic::Term::Bin(op, Box::new(term1), Box::new(term2), op_info),
                 name_env,
             )
         }
@@ -342,6 +359,13 @@ fn binop_term_from_pair(
             let (term, name_env) = term_from_pair(pairs.next().unwrap(), name_to_ident)?;
             assert_eq!(pairs.next().unwrap().as_rule(), Rule::right_paren);
             (term, name_env)
+        }
+        Rule::kw_true => (logic::Term::True(info), NameEnv::empty()),
+        Rule::kw_false => (logic::Term::False(info), NameEnv::empty()),
+        Rule::name => {
+            let (name, info) = name_from_pair(pairs.next().unwrap());
+            let id = *name_to_ident.get(&name).unwrap();
+            (logic::Term::Var(id, info), NameEnv::empty())
         }
         _ => unreachable!(),
     })
@@ -411,12 +435,10 @@ fn primary_term_from_pair(
             let id = *name_to_ident.get(&name).unwrap();
             Ok((logic::Term::Var(id, info), NameEnv::empty()))
         }
-        Rule::constant => {
-            let n = integer_constant_from_pair(pair);
+        Rule::number => {
+            let n = number_from_pair(pair);
             Ok((logic::Term::Num(n, info), NameEnv::empty()))
         }
-        Rule::kw_true => Ok((logic::Term::Num(0, info), NameEnv::empty())),
-        Rule::kw_false => Ok((logic::Term::Num(1, info), NameEnv::empty())),
         Rule::left_paren => {
             let e = additive_term_from_pair(pairs.next().unwrap(), name_to_ident)?;
             assert_eq!(pairs.next().unwrap().as_rule(), Rule::right_paren);
@@ -434,7 +456,7 @@ fn refine_type_from_pair(
     let mut pairs = pair.into_inner();
 
     match pairs.peek().unwrap().as_rule() {
-        Rule::int_refine_type => int_refine_type_from_pair(pairs.next().unwrap(), name_to_ident),
+        Rule::base_refine_type => base_refine_type_from_pair(pairs.next().unwrap(), name_to_ident),
         Rule::func_refine_type => func_refine_type_from_pair(pairs.next().unwrap(), name_to_ident),
         Rule::left_paren => {
             assert_eq!(pairs.next().unwrap().as_rule(), Rule::left_paren);
@@ -446,11 +468,11 @@ fn refine_type_from_pair(
     }
 }
 
-fn int_refine_type_from_pair(
+fn base_refine_type_from_pair(
     pair: Pair<Rule>,
     name_to_ident: &HashMap<String, Ident>,
 ) -> Result<(Type, NameEnv), ParseError> {
-    assert_eq!(pair.as_rule(), Rule::int_refine_type);
+    assert_eq!(pair.as_rule(), Rule::base_refine_type);
     let info = pair_to_info(&pair);
     let mut pairs = pair.into_inner();
 
@@ -464,13 +486,19 @@ fn int_refine_type_from_pair(
     name_env.insert(ident, name);
 
     assert_eq!(pairs.next().unwrap().as_rule(), Rule::colon);
-    assert_eq!(pairs.next().unwrap().as_rule(), Rule::kw_int);
+
+    let base_type_kind = match pairs.next().unwrap().as_rule() {
+        Rule::kw_int => BaseTypeKind::Int,
+        Rule::kw_bool => BaseTypeKind::Bool,
+        _ => unreachable!(),
+    };
+
     assert_eq!(pairs.next().unwrap().as_rule(), Rule::bar);
     let (term, name_env_) = term_from_pair(pairs.next().unwrap(), &name_to_ident)?;
     name_env.append(name_env_);
     assert_eq!(pairs.next().unwrap().as_rule(), Rule::right_paren);
 
-    Ok((Type::IntType(ident, term, info), name_env))
+    Ok((Type::BaseType(ident, base_type_kind, term, info), name_env))
 }
 
 fn func_refine_type_from_pair(
@@ -805,30 +833,27 @@ fn primary_expr_from_pair(
     let info = pair_to_info(&pair);
 
     match pair.as_rule() {
-        Rule::ifz_expr => ifz_expr_from_pair(pair, name_to_ident),
-        Rule::constant => Ok((
-            Expr::Num(integer_constant_from_pair(pair), info),
-            NameEnv::empty(),
-        )),
-        Rule::kw_true => Ok((Expr::Num(0, info), NameEnv::empty())),
-        Rule::kw_false => Ok((Expr::Num(1, info), NameEnv::empty())),
+        Rule::if_expr => if_expr_from_pair(pair, name_to_ident),
+        Rule::number => Ok((Expr::Num(number_from_pair(pair), info), NameEnv::empty())),
+        Rule::kw_true => Ok((Expr::Boolean(true, info), NameEnv::empty())),
+        Rule::kw_false => Ok((Expr::Boolean(false, info), NameEnv::empty())),
         Rule::variable => variable_from_pair(pair, name_to_ident),
         Rule::paren_expr => paren_expr_from_pair(pair, name_to_ident),
         _ => unreachable!(),
     }
 }
 
-fn ifz_expr_from_pair(
+fn if_expr_from_pair(
     pair: Pair<Rule>,
     name_to_ident: &HashMap<String, Ident>,
 ) -> Result<(Expr, NameEnv), ParseError> {
-    assert_eq!(pair.as_rule(), Rule::ifz_expr);
+    assert_eq!(pair.as_rule(), Rule::if_expr);
     let info = pair_to_info(&pair);
     let mut pairs_iter = pair.into_inner();
 
     let mut name_env = NameEnv::empty();
 
-    assert_eq!(pairs_iter.next().unwrap().as_rule(), Rule::kw_ifz);
+    assert_eq!(pairs_iter.next().unwrap().as_rule(), Rule::kw_if);
 
     let cond_pair = pairs_iter.next().unwrap();
     assert_eq!(cond_pair.as_rule(), Rule::expr);
@@ -854,12 +879,12 @@ fn ifz_expr_from_pair(
     assert_eq!(pairs_iter.next().unwrap().as_rule(), Rule::right_brace);
 
     Ok((
-        Expr::Ifz(Box::new(cond), Box::new(expr1), Box::new(expr2), info),
+        Expr::If(Box::new(cond), Box::new(expr1), Box::new(expr2), info),
         name_env,
     ))
 }
 
-fn integer_constant_from_pair(pair: Pair<Rule>) -> i32 {
+fn number_from_pair(pair: Pair<Rule>) -> i32 {
     pair.as_str().parse().unwrap()
 }
 

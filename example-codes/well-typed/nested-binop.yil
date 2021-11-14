@@ -1,2 +1,2 @@
-rec func main (a: int | true): (ret: int | ret = 0) =
+rec func main (a: int | true): (ret: bool | ret) =
     (1 + 2) >= 3

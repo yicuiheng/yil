@@ -3,23 +3,24 @@ program = { SOI ~ func+ ~ EOI }
 func = { kw_rec? ~ kw_func ~ name ~ refine_type+ ~ colon ~ refine_type ~ equal ~ expr }
 
 refine_type = {
-    int_refine_type |
+    base_refine_type |
     func_refine_type |
     left_paren ~ refine_type ~ right_paren }
 
-int_refine_type = { left_paren ~ name ~ colon ~ kw_int ~ bar ~ term ~ right_paren }
+base_refine_type = { left_paren ~ name ~ colon ~ (kw_int|kw_bool) ~ bar ~ term ~ right_paren }
 func_refine_type = { left_paren ~ name ~ colon ~ refine_type ~ (arrow ~ refine_type)+ ~ right_paren }
 
 term = { and_term ~ (or ~ and_term)* }
 and_term = { imply_term ~ (and ~ imply_term)* }
-imply_term = { binop_term ~ (fat_arrow ~ binop_term)* }
-binop_term = {
-    kw_true | kw_false |
+imply_term = { not_term ~ (fat_arrow ~ not_term)* }
+not_term = { (exclamation ~ binpred_term) | binpred_term }
+binpred_term = {
     (additive_term ~ (eq | neq | leq | lt | geq | gt) ~ additive_term) |
-    (left_paren ~ term ~ right_paren) }
+    (left_paren ~ term ~ right_paren) |
+    kw_true | kw_false | name }
 additive_term = { multive_term ~ ((plus | minus) ~ multive_term)* }
 multive_term = { primary_term ~ ((ast | slash | percent) ~ primary_term)* }
-primary_term = { name | constant | kw_true | kw_false | left_paren ~ additive_term ~ right_paren }
+primary_term = { name | number | left_paren ~ additive_term ~ right_paren }
 
 expr = {
     let_expr |
@@ -39,16 +40,16 @@ multive_expr = { apply_expr ~ ((ast | slash | percent) ~ apply_expr)* }
 apply_expr = { primary_expr+ }
 
 primary_expr = {
-    ifz_expr |
-    constant |
+    if_expr |
+    number |
     kw_true |
     kw_false |
     variable |
     paren_expr
 }
 
-ifz_expr = { kw_ifz ~ expr ~ left_brace ~ expr ~ right_brace ~ kw_else ~ left_brace ~ expr ~ right_brace }
-constant = @{ minus? ~ digit+ }
+if_expr = { kw_if ~ expr ~ left_brace ~ expr ~ right_brace ~ kw_else ~ left_brace ~ expr ~ right_brace }
+number = @{ minus? ~ digit+ }
 variable = { name }
 paren_expr = { left_paren ~ expr ~ right_paren }
 
@@ -63,6 +64,7 @@ slash = { "/" }
 percent = { "%" }
 or = { "||" }
 and = { "&&" }
+exclamation = { "!" }
 equal = { "=" }
 eq = { "=" }
 neq = { "!=" }
@@ -76,17 +78,18 @@ bar = { "|" }
 arrow = { "->" }
 fat_arrow = { "=>" }
 
-kw_ifz = { "ifz" }
+kw_if = { "if" }
 kw_else = { "else" }
 kw_let = { "let" }
 kw_in = { "in" }
 kw_rec = { "rec" }
 kw_func = { "func" }
 kw_int = { "int" }
+kw_bool = { "bool" }
 kw_true = { "true" }
 kw_false = { "false" }
 
-keyword = { kw_ifz | kw_else | kw_let | kw_in | kw_rec | kw_func | kw_int | kw_true | kw_false }
+keyword = { kw_if | kw_else | kw_let | kw_in | kw_rec | kw_func | kw_int | kw_bool | kw_true | kw_false }
 
 alpha = {'a'..'z' | 'A'..'Z'}
 digit = {'0'..'9'}

@@ -6,15 +6,15 @@ Yil は篩型という表現力の高い型システムを持っています．
 例えば次の偶奇を判定するプログラム `example-codes/well-typed/even_odd.yil` で Yil が何を型で表現できるのか見てみましょう．
 ```
 rec func is_even (n:int | n >= 0) :
-  (ret: int | ((n % 2 = 0) => ret = true) && ((n %2 != 0) => ret = false)) =
+  (ret: bool | ((n % 2 = 0) => ret) && ((n % 2 != 0) => !ret)) =
 
-  ifz n { true }
+  if n = 0 { true }
   else { is_odd (n - 1) }
 
 rec func is_odd (n:int | n >= 0) :
-  (ret: int | ((n % 2 = 0) => ret = false) && ((n %2 != 0) => ret = true)) =
+  (ret: bool | ((n % 2 = 0) => !ret) && ((n % 2 != 0) => ret)) =
   
-  ifz n { false }
+  if n = 0 { false }
   else { is_even (n - 1) }
 
 func main (a:int | true): (ret:int | true) =
@@ -32,15 +32,15 @@ Yil ではこの *`n` が非負* であるという条件や *`n` が偶数な�
 では，もし関数の実装が型の中に記述されている制約を満たさない場合，どうなるのでしょうか．間違った実装の偶奇判定プログラムを `example-codes/ill-typed/even_odd.yil` に用意しました．
 ```
 rec func is_even (n:int | n >= 0) :
-  (ret: int | ((n % 2 = 0) => ret = true) && ((n %2 != 0) => ret = false)) =
+  (ret: bool | (n % 2 = 0) => ret && (n % 2 != 0) => !ret) =
 
-  ifz n { true }
+  if n = 0 { true }
   else { is_odd (n - 1) }
 
 rec func is_odd (n:int | n >= 0) :
-  (ret: int | ((n % 2 = 0) => ret = false) && ((n %2 != 0) => ret = true)) =
+  (ret: bool | (n % 2 != 0) => ret && (n % 2 = 0) => !ret) =
   
-  ifz n { true }
+  if n = 0 { true }
   else { is_even (n - 1) }
 
 func main (a:int | true): (ret:int | true) =
@@ -48,25 +48,25 @@ func main (a:int | true): (ret:int | true) =
    0
 ```
 
-はじめに出した正しい実装の偶奇判定プログラムとの違いは `is_odd` 関数の `ifz` 式のいわゆる then 節 の式が `false` ではなく `true` であるという点です．
+はじめに出した正しい実装の偶奇判定プログラムとの違いは `is_odd` 関数の `if` 式のいわゆる then 節 の式が `false` ではなく `true` であるという点です．
 おそらく `is_odd` 関数を実装する際に `is_even` 関数をコピペして then 節を修正するのを忘れたのでしょう．  
 これを実行すると以下の出力を得ます．
 ```
 [type error] given implementation does not meet specification
    |
-10 |   ifz n { true }
-   |   --------------
+10 |   if n = 0 { true }
+   |   -----------------
 11 |   else { is_even (n - 1) }
    | -------------------------- implementation
   vs.
   |
-8 |   (ret: int | ((n % 2 = 0) => ret = false) && ((n %2 != 0) => ret = true)) =
-  |   ------------------------------------------------------------------------ specification
+8 |   (ret: bool | (n % 2 != 0) => ret && (n % 2 = 0) => !ret) =
+  |   -------------------------------------------------------- specification
 
 counter example [
   n = 0,
 ]
 ```
 
-これは `ifz` 式の実装が関数の返り値に対する仕様を満たさないということを言っています．
+これは `if` 式の実装が関数の返り値に対する仕様を満たさないということを言っています．
 さらにこの仕様違反が起きるのはどういった時かも教えてくれていて，ここでは引数 `n` が `0` の時だそうです．確かに `n` が `0` の時この関数 `is_odd` は `true` を返しますが 0 は奇数ではないですね．

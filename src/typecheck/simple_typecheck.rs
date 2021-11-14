@@ -47,16 +47,17 @@ pub fn check_expr(
 ) -> Result<(SimpleType, Pos, Pos), TypeError> {
     let (start, end) = expr.info().as_range();
     match expr {
-        Expr::Num(_, _) => Ok((SimpleType::IntType, start, end)),
+        Expr::Num(_, _) => Ok((SimpleType::BaseType(BaseTypeKind::Int), start, end)),
+        Expr::Boolean(_, _) => Ok((SimpleType::BaseType(BaseTypeKind::Bool), start, end)),
         Expr::Var(ident, _) => Ok((type_env.lookup(*ident).clone(), start, end)),
-        Expr::Ifz(cond, expr1, expr2, _) => {
+        Expr::If(cond, expr1, expr2, _) => {
             let (cond_type, start, end) = check_expr(cond, type_env)?;
-            if cond_type != SimpleType::IntType {
+            if !cond_type.is_bool() {
                 return Err(TypeError::UnexpectedSimpleType {
                     actual: cond_type,
-                    expected: SimpleType::IntType,
+                    expected: SimpleType::BaseType(BaseTypeKind::Bool),
                     range: (start, end),
-                    msg: "if-condition expression must be integer",
+                    msg: "if-condition expression must be boolean",
                 });
             }
             let (type1, start1, end1) = check_expr(expr1, type_env)?;
