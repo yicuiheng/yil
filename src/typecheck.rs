@@ -42,8 +42,8 @@ fn typecheck_func(func: &Func, common_type_env: TypeEnv) -> Result<(), TypeError
     let mut constraints = vec![];
     let (body_ret_type, type_env) = calc_constraints::expr(&func.body, &type_env, &mut constraints);
 
-    let body_range = func.body.info().as_range();
-    let ret_type_range = ret_type.info().as_range();
+    let body_range = func.body.info().range.unwrap();
+    let ret_type_range = ret_type.info().range.unwrap();
     constraint::add_subtype_constraint(
         &body_ret_type,
         &ret_type,

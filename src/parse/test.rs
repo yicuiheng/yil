@@ -26,21 +26,21 @@ fn parse_program_test() {
                             Box::new(Type::BaseType(
                                 Ident::with_id(init_id + 2),
                                 BaseTypeKind::Int,
-                                logic::Term::True(Info::Dummy),
-                                Info::Dummy
+                                logic::Term::True(Info::dummy()),
+                                Info::dummy()
                             )),
                             Box::new(Type::BaseType(
                                 Ident::with_id(init_id + 3),
                                 BaseTypeKind::Int,
-                                logic::Term::True(Info::Dummy),
-                                Info::Dummy
+                                logic::Term::True(Info::dummy()),
+                                Info::dummy()
                             )),
-                            Info::Dummy,
+                            Info::dummy(),
                         ),
                         params_len: 1,
                         is_rec: false,
-                        body: Expr::Num(1, Info::Dummy),
-                        info: Info::Dummy,
+                        body: Expr::Num(1, Info::dummy()),
+                        info: Info::dummy(),
                     },
                     Func {
                         typ: Type::FuncType(
@@ -48,24 +48,24 @@ fn parse_program_test() {
                             Box::new(Type::BaseType(
                                 Ident::with_id(init_id + 4),
                                 BaseTypeKind::Int,
-                                logic::Term::False(Info::Dummy),
-                                Info::Dummy
+                                logic::Term::False(Info::dummy()),
+                                Info::dummy()
                             )),
                             Box::new(Type::BaseType(
                                 Ident::with_id(init_id + 5),
                                 BaseTypeKind::Int,
-                                logic::Term::False(Info::Dummy),
-                                Info::Dummy
+                                logic::Term::False(Info::dummy()),
+                                Info::dummy()
                             )),
-                            Info::Dummy,
+                            Info::dummy(),
                         ),
                         params_len: 1,
                         is_rec: false,
-                        body: Expr::Num(2, Info::Dummy),
-                        info: Info::Dummy,
+                        body: Expr::Num(2, Info::dummy()),
+                        info: Info::dummy(),
                     }
                 ],
-                info: Info::Dummy,
+                info: Info::dummy(),
             },
             vec![
                 (Ident::builtin_ident_with_id(13), "print_bool".to_string()),
@@ -98,21 +98,21 @@ fn parse_func_test() {
                     Box::new(Type::BaseType(
                         Ident::with_id(init_id + 1),
                         BaseTypeKind::Int,
-                        logic::Term::True(Info::Dummy),
-                        Info::Dummy
+                        logic::Term::True(Info::dummy()),
+                        Info::dummy()
                     )),
                     Box::new(Type::BaseType(
                         Ident::with_id(init_id + 2),
                         BaseTypeKind::Int,
-                        logic::Term::True(Info::Dummy),
-                        Info::Dummy
+                        logic::Term::True(Info::dummy()),
+                        Info::dummy()
                     )),
-                    Info::Dummy
+                    Info::dummy()
                 ),
                 params_len: 1,
                 is_rec: true,
-                body: Expr::Num(1, Info::Dummy),
-                info: Info::Dummy
+                body: Expr::Num(1, Info::dummy()),
+                info: Info::dummy()
             },
             vec![
                 (Ident::with_id(init_id), "hoge".to_string()),
@@ -136,31 +136,31 @@ fn parse_func_test() {
                     Box::new(Type::BaseType(
                         Ident::with_id(init_id + 1),
                         BaseTypeKind::Int,
-                        logic::Term::True(Info::Dummy),
-                        Info::Dummy
+                        logic::Term::True(Info::dummy()),
+                        Info::dummy()
                     )),
                     Box::new(Type::FuncType(
                         Ident::with_id(init_id + 4),
                         Box::new(Type::BaseType(
                             Ident::with_id(init_id + 2),
                             BaseTypeKind::Int,
-                            logic::Term::True(Info::Dummy),
-                            Info::Dummy
+                            logic::Term::True(Info::dummy()),
+                            Info::dummy()
                         )),
                         Box::new(Type::BaseType(
                             Ident::with_id(init_id + 3),
                             BaseTypeKind::Int,
-                            logic::Term::True(Info::Dummy),
-                            Info::Dummy
+                            logic::Term::True(Info::dummy()),
+                            Info::dummy()
                         )),
-                        Info::Dummy
+                        Info::dummy()
                     )),
-                    Info::Dummy
+                    Info::dummy()
                 ),
                 params_len: 2,
                 is_rec: false,
-                body: Expr::Var(Ident::with_id(init_id + 1), Info::Dummy),
-                info: Info::Dummy
+                body: Expr::Var(Ident::with_id(init_id + 1), Info::dummy()),
+                info: Info::dummy()
             },
             vec![
                 (Ident::with_id(init_id), "hoge".to_string()),
@@ -190,11 +190,11 @@ fn parse_type_test() {
                 BaseTypeKind::Int,
                 logic::Term::Bin(
                     logic::BinOp::Geq,
-                    Box::new(logic::Term::Var(Ident::with_id(init_id), Info::Dummy)),
-                    Box::new(logic::Term::Num(0, Info::Dummy)),
-                    Info::Dummy
+                    Box::new(logic::Term::Var(Ident::with_id(init_id), Info::dummy())),
+                    Box::new(logic::Term::Num(0, Info::dummy())),
+                    Info::dummy()
                 ),
-                Info::Dummy
+                Info::dummy()
             ),
             vec![(Ident::with_id(init_id), "n".to_string())]
                 .into_iter()
@@ -213,16 +213,16 @@ fn parse_type_test() {
                 Box::new(Type::BaseType(
                     Ident::with_id(init_id + 1),
                     BaseTypeKind::Int,
-                    logic::Term::True(Info::Dummy),
-                    Info::Dummy
+                    logic::Term::True(Info::dummy()),
+                    Info::dummy()
                 )),
                 Box::new(Type::BaseType(
                     Ident::with_id(init_id + 2),
                     BaseTypeKind::Int,
-                    logic::Term::True(Info::Dummy),
-                    Info::Dummy
+                    logic::Term::True(Info::dummy()),
+                    Info::dummy()
                 )),
-                Info::Dummy
+                Info::dummy()
             ),
             vec![
                 (Ident::with_id(init_id), "f".to_string()),
@@ -245,26 +245,26 @@ fn parse_type_test() {
                 Box::new(Type::BaseType(
                     Ident::with_id(init_id + 1),
                     BaseTypeKind::Int,
-                    logic::Term::True(Info::Dummy),
-                    Info::Dummy
+                    logic::Term::True(Info::dummy()),
+                    Info::dummy()
                 )),
                 Box::new(Type::FuncType(
                     Ident::with_id(init_id + 4),
                     Box::new(Type::BaseType(
                         Ident::with_id(init_id + 2),
                         BaseTypeKind::Int,
-                        logic::Term::True(Info::Dummy),
-                        Info::Dummy
+                        logic::Term::True(Info::dummy()),
+                        Info::dummy()
                     )),
                     Box::new(Type::BaseType(
                         Ident::with_id(init_id + 3),
                         BaseTypeKind::Int,
-                        logic::Term::True(Info::Dummy),
-                        Info::Dummy
+                        logic::Term::True(Info::dummy()),
+                        Info::dummy()
                     )),
-                    Info::Dummy
+                    Info::dummy()
                 )),
-                Info::Dummy
+                Info::dummy()
             ),
             vec![
                 (Ident::with_id(init_id), "f".to_string()),
@@ -285,19 +285,19 @@ fn parse_expr_test() {
 
     assert_eq!(
         expr("0").unwrap(),
-        (Expr::Num(0, Info::Dummy), Env::empty())
+        (Expr::Num(0, Info::dummy()), Env::empty())
     );
     assert_eq!(
         expr("-1").unwrap(),
-        (Expr::Num(-1, Info::Dummy), Env::empty())
+        (Expr::Num(-1, Info::dummy()), Env::empty())
     );
     assert_eq!(
         expr("true").unwrap(),
-        (Expr::Boolean(true, Info::Dummy), Env::empty())
+        (Expr::Boolean(true, Info::dummy()), Env::empty())
     );
     assert_eq!(
         expr("false").unwrap(),
-        (Expr::Boolean(false, Info::Dummy), Env::empty())
+        (Expr::Boolean(false, Info::dummy()), Env::empty())
     );
 
     assert_eq!(
@@ -305,20 +305,20 @@ fn parse_expr_test() {
         (
             Expr::App(
                 Box::new(Expr::App(
-                    Box::new(Expr::Var(builtin.add_ident, Info::Dummy)),
+                    Box::new(Expr::Var(builtin.add_ident, Info::dummy())),
                     Box::new(Expr::App(
                         Box::new(Expr::App(
-                            Box::new(Expr::Var(builtin.add_ident, Info::Dummy)),
-                            Box::new(Expr::Num(1, Info::Dummy)),
-                            Info::Dummy
+                            Box::new(Expr::Var(builtin.add_ident, Info::dummy())),
+                            Box::new(Expr::Num(1, Info::dummy())),
+                            Info::dummy()
                         )),
-                        Box::new(Expr::Num(2, Info::Dummy)),
-                        Info::Dummy
+                        Box::new(Expr::Num(2, Info::dummy())),
+                        Info::dummy()
                     )),
-                    Info::Dummy
+                    Info::dummy()
                 )),
-                Box::new(Expr::Num(3, Info::Dummy)),
-                Info::Dummy
+                Box::new(Expr::Num(3, Info::dummy())),
+                Info::dummy()
             ),
             Env::empty()
         )
@@ -329,20 +329,20 @@ fn parse_expr_test() {
         (
             Expr::App(
                 Box::new(Expr::App(
-                    Box::new(Expr::Var(builtin.add_ident, Info::Dummy)),
-                    Box::new(Expr::Num(1, Info::Dummy)),
-                    Info::Dummy
+                    Box::new(Expr::Var(builtin.add_ident, Info::dummy())),
+                    Box::new(Expr::Num(1, Info::dummy())),
+                    Info::dummy()
                 )),
                 Box::new(Expr::App(
                     Box::new(Expr::App(
-                        Box::new(Expr::Var(builtin.mult_ident, Info::Dummy)),
-                        Box::new(Expr::Num(2, Info::Dummy)),
-                        Info::Dummy
+                        Box::new(Expr::Var(builtin.mult_ident, Info::dummy())),
+                        Box::new(Expr::Num(2, Info::dummy())),
+                        Info::dummy()
                     )),
-                    Box::new(Expr::Num(3, Info::Dummy)),
-                    Info::Dummy
+                    Box::new(Expr::Num(3, Info::dummy())),
+                    Info::dummy()
                 )),
-                Info::Dummy
+                Info::dummy()
             ),
             Env::empty()
         )
@@ -357,25 +357,25 @@ fn parse_expr_test() {
         (
             Expr::App(
                 Box::new(Expr::App(
-                    Box::new(Expr::Var(builtin.add_ident, Info::Dummy)),
-                    Box::new(Expr::Num(1, Info::Dummy)),
-                    Info::Dummy
+                    Box::new(Expr::Var(builtin.add_ident, Info::dummy())),
+                    Box::new(Expr::Num(1, Info::dummy())),
+                    Info::dummy()
                 )),
                 Box::new(Expr::If(
                     Box::new(Expr::App(
                         Box::new(Expr::App(
-                            Box::new(Expr::Var(builtin.eq_ident, Info::Dummy)),
-                            Box::new(Expr::Var(a_ident, Info::Dummy)),
-                            Info::Dummy
+                            Box::new(Expr::Var(builtin.eq_ident, Info::dummy())),
+                            Box::new(Expr::Var(a_ident, Info::dummy())),
+                            Info::dummy()
                         )),
-                        Box::new(Expr::Num(0, Info::Dummy)),
-                        Info::Dummy
+                        Box::new(Expr::Num(0, Info::dummy())),
+                        Info::dummy()
                     )),
-                    Box::new(Expr::Num(2, Info::Dummy)),
-                    Box::new(Expr::Num(3, Info::Dummy)),
-                    Info::Dummy
+                    Box::new(Expr::Num(2, Info::dummy())),
+                    Box::new(Expr::Num(3, Info::dummy())),
+                    Info::dummy()
                 )),
-                Info::Dummy
+                Info::dummy()
             ),
             Env::empty()
         )
@@ -387,22 +387,22 @@ fn parse_expr_test() {
         (
             Expr::Let(
                 Ident::with_id(init_id),
-                Box::new(Expr::Num(0, Info::Dummy)),
+                Box::new(Expr::Num(0, Info::dummy())),
                 Box::new(Expr::Let(
                     Ident::with_id(init_id + 1),
-                    Box::new(Expr::Num(1, Info::Dummy)),
+                    Box::new(Expr::Num(1, Info::dummy())),
                     Box::new(Expr::App(
                         Box::new(Expr::App(
-                            Box::new(Expr::Var(builtin.add_ident, Info::Dummy)),
-                            Box::new(Expr::Var(Ident::with_id(init_id), Info::Dummy)),
-                            Info::Dummy
+                            Box::new(Expr::Var(builtin.add_ident, Info::dummy())),
+                            Box::new(Expr::Var(Ident::with_id(init_id), Info::dummy())),
+                            Info::dummy()
                         )),
-                        Box::new(Expr::Var(Ident::with_id(init_id + 1), Info::Dummy)),
-                        Info::Dummy
+                        Box::new(Expr::Var(Ident::with_id(init_id + 1), Info::dummy())),
+                        Info::dummy()
                     )),
-                    Info::Dummy
+                    Info::dummy()
                 )),
-                Info::Dummy
+                Info::dummy()
             ),
             vec![
                 (Ident::with_id(init_id), "a".to_string()),
@@ -421,12 +421,12 @@ fn parse_expr_test() {
                 Ident::with_id(init_id),
                 Box::new(Expr::Let(
                     Ident::with_id(init_id + 1),
-                    Box::new(Expr::Num(1, Info::Dummy)),
-                    Box::new(Expr::Var(Ident::with_id(init_id + 1), Info::Dummy)),
-                    Info::Dummy
+                    Box::new(Expr::Num(1, Info::dummy())),
+                    Box::new(Expr::Var(Ident::with_id(init_id + 1), Info::dummy())),
+                    Info::dummy()
                 )),
-                Box::new(Expr::Var(Ident::with_id(init_id), Info::Dummy)),
-                Info::Dummy
+                Box::new(Expr::Var(Ident::with_id(init_id), Info::dummy())),
+                Info::dummy()
             ),
             vec![
                 (Ident::with_id(init_id), "a".to_string()),
@@ -446,9 +446,9 @@ fn parse_expr_test() {
         expr_with_name_map("f 1", &name_to_ident).unwrap(),
         (
             Expr::App(
-                Box::new(Expr::Var(f_ident, Info::Dummy)),
-                Box::new(Expr::Num(1, Info::Dummy)),
-                Info::Dummy
+                Box::new(Expr::Var(f_ident, Info::dummy())),
+                Box::new(Expr::Num(1, Info::dummy())),
+                Info::dummy()
             ),
             Env::empty()
         )
@@ -464,12 +464,12 @@ fn parse_expr_test() {
         (
             Expr::App(
                 Box::new(Expr::App(
-                    Box::new(Expr::Var(f_ident, Info::Dummy)),
-                    Box::new(Expr::Num(1, Info::Dummy)),
-                    Info::Dummy
+                    Box::new(Expr::Var(f_ident, Info::dummy())),
+                    Box::new(Expr::Num(1, Info::dummy())),
+                    Info::dummy()
                 )),
-                Box::new(Expr::Num(2, Info::Dummy)),
-                Info::Dummy
+                Box::new(Expr::Num(2, Info::dummy())),
+                Info::dummy()
             ),
             Env::empty()
         )

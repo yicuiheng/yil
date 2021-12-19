@@ -1,1 +1,3 @@
-rec func main (x: int | x >= 10 ): (y: int | y >= 3) = x
+rec func hoge (x: int | x >= 10 ): (y: int | y >= 3) = x
+
+rec func main (x: int | true): (ret: int | true) = 0

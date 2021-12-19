@@ -22,11 +22,11 @@ fn number(n: i32, type_env: &TypeEnv) -> (Type, TypeEnv) {
         BaseTypeKind::Int,
         Term::Bin(
             BinOp::Eq,
-            Box::new(Term::Var(ident, Info::Dummy)),
-            Box::new(Term::Num(n, Info::Dummy)),
-            Info::Dummy,
+            Box::new(Term::Var(ident, Info::dummy())),
+            Box::new(Term::Num(n, Info::dummy())),
+            Info::dummy(),
         ),
-        Info::Dummy,
+        Info::dummy(),
     );
     let mut type_env = type_env.clone();
     type_env.insert(ident, typ.clone());
@@ -39,11 +39,11 @@ fn boolean(b: bool, type_env: &TypeEnv) -> (Type, TypeEnv) {
         ident,
         BaseTypeKind::Bool,
         if b {
-            Term::Var(ident, Info::Dummy)
+            Term::Var(ident, Info::dummy())
         } else {
-            Term::Not(Box::new(Term::Var(ident, Info::Dummy)), Info::Dummy)
+            Term::Not(Box::new(Term::Var(ident, Info::dummy())), Info::dummy())
         },
-        Info::Dummy,
+        Info::dummy(),
     );
     let mut type_env = type_env.clone();
     type_env.insert(ident, typ.clone());
@@ -75,10 +75,10 @@ fn if_expr(
                 Term::Bin(
                     BinOp::And,
                     Box::new(cond_term.clone()),
-                    Box::new(Term::Var(cond_ident, Info::Dummy)),
-                    Info::Dummy,
+                    Box::new(Term::Var(cond_ident, Info::dummy())),
+                    Info::dummy(),
                 ),
-                Info::Dummy,
+                Info::dummy(),
             ),
         );
         let (true_branch_type, mut type_env) = expr(e1, &true_branch_type_env, constraints);
@@ -94,12 +94,12 @@ fn if_expr(
                     BinOp::And,
                     Box::new(cond_term),
                     Box::new(Term::Not(
-                        Box::new(Term::Var(cond_ident, Info::Dummy)),
-                        Info::Dummy,
+                        Box::new(Term::Var(cond_ident, Info::dummy())),
+                        Info::dummy(),
                     )),
-                    Info::Dummy,
+                    Info::dummy(),
                 ),
-                Info::Dummy,
+                Info::dummy(),
             ),
         );
         let (false_branch_type, mut type_env) = expr(e2, &false_branch_type_env, constraints);
@@ -126,7 +126,7 @@ fn make_if_type(
                 Type::FuncType(ident2, type21, type22, _),
             ) => {
                 let ident = Ident::fresh();
-                let ident_var = Term::Var(ident, Info::Dummy);
+                let ident_var = Term::Var(ident, Info::dummy());
                 let type11 = type11.subst(ident1, &ident_var);
                 let mut type12 = type12.subst(ident1, &ident_var);
                 let type21 = type21.subst(ident2, &ident_var);
@@ -135,7 +135,7 @@ fn make_if_type(
                 let (param_type, subst) = make_and_type(type11, type21);
                 param_types.push((ident, param_type));
                 for (from_ident, to_ident) in subst {
-                    let to_ident_var = Term::Var(to_ident, Info::Dummy);
+                    let to_ident_var = Term::Var(to_ident, Info::dummy());
                     type12 = type12.subst(from_ident, &to_ident_var);
                     type22 = type22.subst(from_ident, &to_ident_var);
                 }
@@ -148,7 +148,7 @@ fn make_if_type(
             ) if base_type_kind1 == base_type_kind2 => {
                 // (cond and term1) or (!cond and term2)
                 let ident = Ident::fresh();
-                let ident_var = Term::Var(ident, Info::Dummy);
+                let ident_var = Term::Var(ident, Info::dummy());
                 let term1 = term1.subst(ident1, &ident_var);
                 let term2 = term2.subst(ident2, &ident_var);
                 let typ = Type::BaseType(
@@ -158,28 +158,28 @@ fn make_if_type(
                         BinOp::Or,
                         Box::new(Term::Bin(
                             BinOp::And,
-                            Box::new(Term::Var(cond_ident, Info::Dummy)),
+                            Box::new(Term::Var(cond_ident, Info::dummy())),
                             Box::new(term1),
-                            Info::Dummy,
+                            Info::dummy(),
                         )),
                         Box::new(Term::Bin(
                             BinOp::And,
                             Box::new(Term::Not(
-                                Box::new(Term::Var(cond_ident, Info::Dummy)),
-                                Info::Dummy,
+                                Box::new(Term::Var(cond_ident, Info::dummy())),
+                                Info::dummy(),
                             )),
                             Box::new(term2),
-                            Info::Dummy,
+                            Info::dummy(),
                         )),
-                        Info::Dummy,
+                        Info::dummy(),
                     ),
-                    Info::Dummy,
+                    Info::dummy(),
                 );
                 let typ = param_types
                     .into_iter()
                     .rev()
                     .fold(typ, |acc, (ident, typ)| {
-                        Type::FuncType(ident, Box::new(typ), Box::new(acc), Info::Dummy)
+                        Type::FuncType(ident, Box::new(typ), Box::new(acc), Info::dummy())
                     });
                 return (typ, type_env);
             }
@@ -198,15 +198,15 @@ fn make_and_type(type1: Type, type2: Type) -> (Type, Vec<(Ident, Ident)>) {
             let ident = Ident::fresh();
             subst.push((ident1, ident));
             subst.push((ident2, ident));
-            let ident_var = Term::Var(ident, Info::Dummy);
+            let ident_var = Term::Var(ident, Info::dummy());
             let term1 = term1.subst(ident1, &ident_var);
             let term2 = term2.subst(ident2, &ident_var);
             (
                 Type::BaseType(
                     ident,
                     base_type_kind,
-                    Term::Bin(BinOp::And, Box::new(term1), Box::new(term2), Info::Dummy),
-                    Info::Dummy,
+                    Term::Bin(BinOp::And, Box::new(term1), Box::new(term2), Info::dummy()),
+                    Info::dummy(),
                 ),
                 subst,
             )
@@ -216,7 +216,7 @@ fn make_and_type(type1: Type, type2: Type) -> (Type, Vec<(Ident, Ident)>) {
             let ident = Ident::fresh();
             subst.push((ident1, ident));
             subst.push((ident2, ident));
-            let ident_var = Term::Var(ident, Info::Dummy);
+            let ident_var = Term::Var(ident, Info::dummy());
             let type11 = type11.subst(ident1, &ident_var);
             let type12 = type12.subst(ident1, &ident_var);
             let type21 = type21.subst(ident2, &ident_var);
@@ -226,7 +226,7 @@ fn make_and_type(type1: Type, type2: Type) -> (Type, Vec<(Ident, Ident)>) {
             let (type2, mut subst_) = make_and_type(type12, type22);
             subst.append(&mut subst_);
             (
-                Type::FuncType(ident, Box::new(type1), Box::new(type2), Info::Dummy),
+                Type::FuncType(ident, Box::new(type1), Box::new(type2), Info::dummy()),
                 subst,
             )
         }
@@ -244,15 +244,15 @@ fn make_or_type(type1: Type, type2: Type) -> (Type, Vec<(Ident, Ident)>) {
             let ident = Ident::fresh();
             subst.push((ident1, ident));
             subst.push((ident2, ident));
-            let ident_var = Term::Var(ident, Info::Dummy);
+            let ident_var = Term::Var(ident, Info::dummy());
             let term1 = term1.subst(ident1, &ident_var);
             let term2 = term2.subst(ident2, &ident_var);
             (
                 Type::BaseType(
                     ident,
                     base_type_kind,
-                    Term::Bin(BinOp::Or, Box::new(term1), Box::new(term2), Info::Dummy),
-                    Info::Dummy,
+                    Term::Bin(BinOp::Or, Box::new(term1), Box::new(term2), Info::dummy()),
+                    Info::dummy(),
                 ),
                 subst,
             )
@@ -262,7 +262,7 @@ fn make_or_type(type1: Type, type2: Type) -> (Type, Vec<(Ident, Ident)>) {
             let ident = Ident::fresh();
             subst.push((ident1, ident));
             subst.push((ident2, ident));
-            let ident_var = Term::Var(ident, Info::Dummy);
+            let ident_var = Term::Var(ident, Info::dummy());
             let type11 = type11.subst(ident1, &ident_var);
             let type12 = type12.subst(ident1, &ident_var);
             let type21 = type21.subst(ident2, &ident_var);
@@ -272,7 +272,7 @@ fn make_or_type(type1: Type, type2: Type) -> (Type, Vec<(Ident, Ident)>) {
             let (type2, mut subst_) = make_or_type(type12, type22);
             subst.append(&mut subst_);
             (
-                Type::FuncType(ident, Box::new(type1), Box::new(type2), Info::Dummy),
+                Type::FuncType(ident, Box::new(type1), Box::new(type2), Info::dummy()),
                 subst,
             )
         }
@@ -291,7 +291,7 @@ fn let_expr(
     type_env.insert(*ident, e1_type.clone());
     let (e2_type, type_env) = expr(e2, &type_env, constraints);
     (
-        e2_type.subst(*ident, &Term::Var(e1_type.ident(), Info::Dummy)),
+        e2_type.subst(*ident, &Term::Var(e1_type.ident(), Info::dummy())),
         type_env,
     )
 }
@@ -304,14 +304,14 @@ fn app_expr(
     constraints: &mut Vec<Constraint>,
 ) -> (Type, TypeEnv) {
     use crate::ast::Node;
-    let impl_range = info.as_range();
+    let impl_range = info.range.unwrap();
 
     let (func_type, type_env) = expr(func, type_env, constraints);
     let (arg_type, mut type_env) = expr(arg, &type_env, constraints);
     match func_type {
-        Type::FuncType(func_ident, from_type, to_type, _) => {
-            if !func_ident.is_builtin {
-                let spec_range = from_type.info().as_range();
+        Type::FuncType(_, from_type, to_type, info) => {
+            if !info.is_builtin {
+                let spec_range = from_type.info().range.unwrap();
                 add_subtype_constraint(
                     &arg_type,
                     &from_type,
@@ -323,7 +323,7 @@ fn app_expr(
             }
             let arg_ident = arg_type.ident();
             type_env.insert(arg_ident, arg_type);
-            let ret_type = to_type.subst(from_type.ident(), &Term::Var(arg_ident, Info::Dummy));
+            let ret_type = to_type.subst(from_type.ident(), &Term::Var(arg_ident, Info::dummy()));
             (ret_type, type_env)
         }
         _ => unreachable!(),

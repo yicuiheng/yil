@@ -1,1 +1,5 @@
-rec func main (x:int | x >= 0) : (y:int | y >= x + 1) = x + 2
+rec func hoge (x:int | x >= 0) : (y:int | y >= x + 1) = x + 2
+
+rec func main (x:int | x >= 0) : (ret:int | true) =
+  let unused = hoge 0 in
+  0

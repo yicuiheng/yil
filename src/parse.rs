@@ -86,7 +86,7 @@ pub fn ident(str: &str) -> Result<String, ParseError> {
 
 fn program_from_pair(pair: Pair<Rule>) -> Result<(Program, NameEnv), ParseError> {
     assert_eq!(pair.as_rule(), Rule::program);
-    let info = pair_to_info(&pair);
+    let range = pair_to_range(&pair);
     let mut pairs = pair.into_inner();
 
     let mut name_env = NameEnv::empty();
@@ -113,19 +113,25 @@ fn program_from_pair(pair: Pair<Rule>) -> Result<(Program, NameEnv), ParseError>
     }
 
     let mut funcs = vec![];
-    for (func_ident, is_rec, info, func_later_pairs) in func_later_pairss {
+    for (func_ident, is_rec, range, func_later_pairs) in func_later_pairss {
         let (func, name_env_) =
-            func_from_pair_step2(func_ident, is_rec, info, &name_to_ident, func_later_pairs)?;
+            func_from_pair_step2(func_ident, is_rec, range, &name_to_ident, func_later_pairs)?;
         name_env.append(name_env_);
         funcs.push(func);
     }
 
-    Ok((Program { funcs, info }, name_env))
+    Ok((
+        Program {
+            funcs,
+            info: Info::from_range(range),
+        },
+        name_env,
+    ))
 }
 
-fn func_from_pair_step1(pair: Pair<Rule>) -> (String, bool, Info, Pairs<Rule>) {
+fn func_from_pair_step1(pair: Pair<Rule>) -> (String, bool, Range, Pairs<Rule>) {
     assert_eq!(pair.as_rule(), Rule::func);
-    let info = pair_to_info(&pair);
+    let range = pair_to_range(&pair);
 
     let mut pairs = pair.into_inner();
     let is_rec = match pairs.peek().unwrap().as_rule() {
@@ -139,13 +145,13 @@ fn func_from_pair_step1(pair: Pair<Rule>) -> (String, bool, Info, Pairs<Rule>) {
     assert_eq!(pairs.next().unwrap().as_rule(), Rule::kw_func);
 
     let (func_name, _) = name_from_pair(pairs.next().unwrap());
-    (func_name, is_rec, info, pairs)
+    (func_name, is_rec, range, pairs)
 }
 
 fn func_from_pair_step2(
     func_ident: Ident,
     is_rec: bool,
-    info: Info,
+    range: Range,
     name_to_ident: &HashMap<String, Ident>,
     mut pairs: Pairs<Rule>,
 ) -> Result<(Func, NameEnv), ParseError> {
@@ -155,12 +161,12 @@ fn func_from_pair_step2(
     let mut param_types = vec![];
     let mut pair = pairs.next().unwrap();
     while pair.as_rule() == Rule::refine_type {
-        let param_type_info = pair_to_info(&pair);
+        let param_type_range = pair_to_range(&pair);
         let (param_type, name_env_) = refine_type_from_pair(pair, &name_to_ident)?;
         name_env.append(name_env_);
         let param_ident = param_type.ident();
         name_to_ident.insert(name_env.lookup(param_ident).clone(), param_ident);
-        param_types.push((param_type, param_type_info));
+        param_types.push((param_type, param_type_range));
         pair = pairs.next().unwrap();
     }
     assert!(param_types.len() >= 1);
@@ -169,7 +175,7 @@ fn func_from_pair_step2(
     assert_eq!(pair.as_rule(), Rule::colon);
 
     let ret_pair = pairs.next().unwrap();
-    let ret_info = pair_to_info(&ret_pair);
+    let ret_range = pair_to_range(&ret_pair);
     let (ret, name_env_) = refine_type_from_pair(ret_pair, &name_to_ident)?;
     name_env.append(name_env_);
 
@@ -177,7 +183,7 @@ fn func_from_pair_step2(
     let typ = param_types
         .into_iter()
         .rev()
-        .fold(ret, |acc, (param_type, param_type_info)| {
+        .fold(ret, |acc, (param_type, param_type_range)| {
             let ident = if param_type.ident() == first_param_ident {
                 func_ident
             } else {
@@ -187,7 +193,7 @@ fn func_from_pair_step2(
                 ident,
                 Box::new(param_type),
                 Box::new(acc),
-                Info::merge(param_type_info, ret_info),
+                Info::from_range(Range::merge(param_type_range, ret_range)),
             )
         });
 
@@ -202,7 +208,7 @@ fn func_from_pair_step2(
             params_len,
             is_rec,
             body,
-            info,
+            info: Info::from_range(range),
         },
         name_env,
     ))
@@ -220,22 +226,22 @@ fn binop<T, BinOpT: Copy>(
     ctor: fn(BinOpT, Box<T>, Box<T>, Info) -> T,
 ) -> Result<(T, NameEnv), ParseError> {
     let pair = pairs.next().unwrap();
-    let start_info = pair_to_info(&pair);
+    let start_range = pair_to_range(&pair);
     assert_eq!(pair.as_rule(), child_rule);
     let (mut acc, mut name_env) = child_from_pair(pair, name_to_ident)?;
     while let Some(pair) = pairs.next() {
-        let op_info = pair_to_info(&pair);
+        let op_range = pair_to_range(&pair);
         let op = *op_map.get(&pair.as_rule()).unwrap();
         let pair = pairs.next().unwrap();
         assert_eq!(pair.as_rule(), child_rule);
-        let end_info = pair_to_info(&pair);
+        let end_range = pair_to_range(&pair);
         let (rhs, name_env_) = child_from_pair(pair, name_to_ident)?;
         name_env.append(name_env_);
         acc = ctor(
-            op(op_info),
+            op(Info::builtin_info_from_range(op_range)),
             Box::new(acc),
             Box::new(rhs),
-            Info::merge(start_info, end_info),
+            Info::from_range(Range::merge(start_range, end_range)),
         );
     }
     Ok((acc, name_env))
@@ -309,14 +315,17 @@ fn not_term_from_pair(
     name_to_ident: &HashMap<String, Ident>,
 ) -> Result<(logic::Term, NameEnv), ParseError> {
     assert_eq!(pair.as_rule(), Rule::not_term);
-    let info = pair_to_info(&pair);
+    let range = pair_to_range(&pair);
 
     let mut pairs = pair.into_inner();
     let pair = pairs.next().unwrap();
     match pair.as_rule() {
         Rule::exclamation => {
             let (inner, name_env) = binpred_term_from_pair(pairs.next().unwrap(), name_to_ident)?;
-            Ok((logic::Term::Not(Box::new(inner), info), name_env))
+            Ok((
+                logic::Term::Not(Box::new(inner), Info::from_range(range)),
+                name_env,
+            ))
         }
         Rule::binpred_term => binpred_term_from_pair(pair, name_to_ident),
         _ => unreachable!(),
@@ -328,7 +337,7 @@ fn binpred_term_from_pair(
     name_to_ident: &HashMap<String, Ident>,
 ) -> Result<(logic::Term, NameEnv), ParseError> {
     assert_eq!(pair.as_rule(), Rule::binpred_term);
-    let info = pair_to_info(&pair);
+    let range = pair_to_range(&pair);
 
     let mut pairs = pair.into_inner();
     Ok(match pairs.peek().unwrap().as_rule() {
@@ -337,7 +346,7 @@ fn binpred_term_from_pair(
             let (term1, name_env_) = additive_term_from_pair(pairs.next().unwrap(), name_to_ident)?;
             name_env.append(name_env_);
             let op_pair = pairs.next().unwrap();
-            let op_info = pair_to_info(&op_pair);
+            let op_range = pair_to_range(&op_pair);
             let op = match op_pair.as_rule() {
                 Rule::eq => logic::BinOp::Eq,
                 Rule::neq => logic::BinOp::Neq,
@@ -350,7 +359,12 @@ fn binpred_term_from_pair(
             let (term2, name_env_) = additive_term_from_pair(pairs.next().unwrap(), name_to_ident)?;
             name_env.append(name_env_);
             (
-                logic::Term::Bin(op, Box::new(term1), Box::new(term2), op_info),
+                logic::Term::Bin(
+                    op,
+                    Box::new(term1),
+                    Box::new(term2),
+                    Info::from_range(op_range),
+                ),
                 name_env,
             )
         }
@@ -360,8 +374,14 @@ fn binpred_term_from_pair(
             assert_eq!(pairs.next().unwrap().as_rule(), Rule::right_paren);
             (term, name_env)
         }
-        Rule::kw_true => (logic::Term::True(info), NameEnv::empty()),
-        Rule::kw_false => (logic::Term::False(info), NameEnv::empty()),
+        Rule::kw_true => (
+            logic::Term::True(Info::builtin_info_from_range(range)),
+            NameEnv::empty(),
+        ),
+        Rule::kw_false => (
+            logic::Term::False(Info::builtin_info_from_range(range)),
+            NameEnv::empty(),
+        ),
         Rule::name => {
             let (name, info) = name_from_pair(pairs.next().unwrap());
             let id = *name_to_ident.get(&name).unwrap();
@@ -425,7 +445,7 @@ fn primary_term_from_pair(
     name_to_ident: &HashMap<String, Ident>,
 ) -> Result<(logic::Term, NameEnv), ParseError> {
     assert_eq!(pair.as_rule(), Rule::primary_term);
-    let info = pair_to_info(&pair);
+    let range = pair_to_range(&pair);
     let mut pairs = pair.into_inner();
 
     let pair = pairs.next().unwrap();
@@ -437,7 +457,10 @@ fn primary_term_from_pair(
         }
         Rule::number => {
             let n = number_from_pair(pair);
-            Ok((logic::Term::Num(n, info), NameEnv::empty()))
+            Ok((
+                logic::Term::Num(n, Info::builtin_info_from_range(range)),
+                NameEnv::empty(),
+            ))
         }
         Rule::left_paren => {
             let e = additive_term_from_pair(pairs.next().unwrap(), name_to_ident)?;
@@ -473,7 +496,7 @@ fn base_refine_type_from_pair(
     name_to_ident: &HashMap<String, Ident>,
 ) -> Result<(Type, NameEnv), ParseError> {
     assert_eq!(pair.as_rule(), Rule::base_refine_type);
-    let info = pair_to_info(&pair);
+    let range = pair_to_range(&pair);
     let mut pairs = pair.into_inner();
 
     assert_eq!(pairs.next().unwrap().as_rule(), Rule::left_paren);
@@ -498,7 +521,10 @@ fn base_refine_type_from_pair(
     name_env.append(name_env_);
     assert_eq!(pairs.next().unwrap().as_rule(), Rule::right_paren);
 
-    Ok((Type::BaseType(ident, base_type_kind, term, info), name_env))
+    Ok((
+        Type::BaseType(ident, base_type_kind, term, Info::from_range(range)),
+        name_env,
+    ))
 }
 
 fn func_refine_type_from_pair(
@@ -519,39 +545,48 @@ fn func_refine_type_from_pair(
 
     let mut types = vec![];
     assert_eq!(pairs.next().unwrap().as_rule(), Rule::colon);
-    let (typ, name_env_) = refine_type_from_pair(pairs.next().unwrap(), &name_to_ident)?;
+    let type_pair = pairs.next().unwrap();
+    let type_range = pair_to_range(&type_pair);
+    let (typ, name_env_) = refine_type_from_pair(type_pair, &name_to_ident)?;
     name_env.append(name_env_);
-    types.push(typ);
+    types.push((typ, type_range));
 
     while pairs.peek().unwrap().as_rule() == Rule::arrow {
         assert_eq!(pairs.next().unwrap().as_rule(), Rule::arrow);
-        let (typ, name_env_) = refine_type_from_pair(pairs.next().unwrap(), &name_to_ident)?;
+        let type_pair = pairs.next().unwrap();
+        let range = pair_to_range(&type_pair);
+        let (typ, name_env_) = refine_type_from_pair(type_pair, &name_to_ident)?;
         name_env.append(name_env_);
-        types.push(typ);
+        types.push((typ, range));
     }
     assert_eq!(pairs.next().unwrap().as_rule(), Rule::right_paren);
 
-    let first_param_ident = types[0].ident();
+    let first_param_ident = types[0].0.ident();
 
-    let typ = types
+    let (typ, _) = types
         .into_iter()
         .rev()
-        .reduce(|acc, typ| {
-            let (_, end) = acc.info().as_range();
-            let (start, _) = typ.info().as_range();
+        .reduce(|(acc, acc_range), (typ, type_range)| {
+            let range = Range::merge(acc_range, type_range);
             if typ.ident() == first_param_ident {
-                Type::FuncType(
-                    func_ident,
-                    Box::new(typ),
-                    Box::new(acc),
-                    Info::Range(start, end),
+                (
+                    Type::FuncType(
+                        func_ident,
+                        Box::new(typ),
+                        Box::new(acc),
+                        Info::from_range(range),
+                    ),
+                    range,
                 )
             } else {
-                Type::FuncType(
-                    Ident::fresh(),
-                    Box::new(typ),
-                    Box::new(acc),
-                    Info::Range(start, end),
+                (
+                    Type::FuncType(
+                        Ident::fresh(),
+                        Box::new(typ),
+                        Box::new(acc),
+                        Info::from_range(range),
+                    ),
+                    range,
                 )
             }
         })
@@ -581,7 +616,7 @@ fn let_expr_from_pair(
     name_to_ident: &HashMap<String, Ident>,
 ) -> Result<(Expr, NameEnv), ParseError> {
     assert_eq!(pair.as_rule(), Rule::let_expr);
-    let info = pair_to_info(&pair);
+    let range = pair_to_range(&pair);
     let mut pairs_iter = pair.into_inner();
 
     let mut name_env = NameEnv::empty();
@@ -611,7 +646,12 @@ fn let_expr_from_pair(
     name_env.append(name_env_);
 
     Ok((
-        Expr::Let(ident, Box::new(expr1), Box::new(expr2), info),
+        Expr::Let(
+            ident,
+            Box::new(expr1),
+            Box::new(expr2),
+            Info::from_range(range),
+        ),
         name_env,
     ))
 }
@@ -805,19 +845,19 @@ fn apply_expr_from_pair(
     name_to_ident: &HashMap<String, Ident>,
 ) -> Result<(Expr, NameEnv), ParseError> {
     assert_eq!(pair.as_rule(), Rule::apply_expr);
-    let start_info = pair_to_info(&pair);
+    let start_range = pair_to_range(&pair);
     let mut pairs = pair.into_inner();
 
     let (mut acc, mut name_env) = primary_expr_from_pair(pairs.next().unwrap(), name_to_ident)?;
 
     for pair in pairs {
-        let end_info = pair_to_info(&pair);
+        let end_range = pair_to_range(&pair);
         let (e, name_env_) = primary_expr_from_pair(pair, name_to_ident)?;
         name_env.append(name_env_);
         acc = Expr::App(
             Box::new(acc),
             Box::new(e),
-            Info::merge(start_info, end_info),
+            Info::from_range(Range::merge(start_range, end_range)),
         );
     }
     Ok((acc, name_env))
@@ -830,7 +870,7 @@ fn primary_expr_from_pair(
     assert_eq!(pair.as_rule(), Rule::primary_expr);
     let mut pairs_iter = pair.into_inner();
     let pair = pairs_iter.next().unwrap();
-    let info = pair_to_info(&pair);
+    let info = Info::builtin_info_from_range(pair_to_range(&pair));
 
     match pair.as_rule() {
         Rule::if_expr => if_expr_from_pair(pair, name_to_ident),
@@ -848,7 +888,7 @@ fn if_expr_from_pair(
     name_to_ident: &HashMap<String, Ident>,
 ) -> Result<(Expr, NameEnv), ParseError> {
     assert_eq!(pair.as_rule(), Rule::if_expr);
-    let info = pair_to_info(&pair);
+    let range = pair_to_range(&pair);
     let mut pairs_iter = pair.into_inner();
 
     let mut name_env = NameEnv::empty();
@@ -879,7 +919,12 @@ fn if_expr_from_pair(
     assert_eq!(pairs_iter.next().unwrap().as_rule(), Rule::right_brace);
 
     Ok((
-        Expr::If(Box::new(cond), Box::new(expr1), Box::new(expr2), info),
+        Expr::If(
+            Box::new(cond),
+            Box::new(expr1),
+            Box::new(expr2),
+            Info::from_range(range),
+        ),
         name_env,
     ))
 }
@@ -917,5 +962,8 @@ fn paren_expr_from_pair(
 
 fn name_from_pair(pair: Pair<Rule>) -> (String, Info) {
     assert_eq!(pair.as_rule(), Rule::name);
-    (pair.as_str().to_string(), pair_to_info(&pair))
+    (
+        pair.as_str().to_string(),
+        Info::from_range(pair_to_range(&pair)),
+    )
 }

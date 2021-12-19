@@ -11,43 +11,86 @@ pub struct Pos {
     pub col: usize,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum Info {
-    Range(Pos, Pos),
-    Dummy,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Range {
+    pub start: Pos,
+    pub end: Pos,
 }
 
-pub type Range = (Pos, Pos);
-
-impl PartialEq for Info {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Info::Range(p11, p12), Info::Range(p21, p22)) => p11 == p21 && p12 == p22,
-            _ => true,
+impl Range {
+    pub fn merge(self, other: Self) -> Self {
+        Self {
+            start: Pos {
+                line: self.start.line.min(other.start.line),
+                col: self.start.col.min(other.start.col),
+            },
+            end: Pos {
+                line: self.end.line.max(other.end.line),
+                col: self.end.col.max(other.end.col),
+            },
         }
     }
 }
 
-impl Eq for Info {}
+#[derive(Debug, Clone, Copy, Eq)]
+pub struct Info {
+    pub range: Option<Range>,
+    pub is_builtin: bool,
+}
 
-impl Info {
+impl PartialEq for Info {
     #[cfg(not(test))]
-    pub fn as_range(self) -> (Pos, Pos) {
-        match self {
-            Info::Range(start, end) => (start, end),
-            _ => unreachable!(),
+    fn eq(&self, other: &Self) -> bool {
+        match (self.range, other.range) {
+            (Some(range1), Some(range2)) => range1 == range2,
+            _ => true,
         }
     }
 
     #[cfg(test)]
-    pub fn as_range(self) -> (Pos, Pos) {
-        (Pos { line: 0, col: 0 }, Pos { line: 0, col: 0 })
+    fn eq(&self, _: &Self) -> bool {
+        true
+    }
+}
+
+impl Info {
+    pub fn builtin() -> Self {
+        Self {
+            range: None,
+            is_builtin: true,
+        }
     }
 
-    pub fn merge(self, other: Self) -> Self {
-        match (self, other) {
-            (Self::Range(start_pos, _), Self::Range(_, end_pos)) => Info::Range(start_pos, end_pos),
-            _ => Self::Dummy,
+    pub fn builtin_info_from_range(range: Range) -> Self {
+        Self {
+            range: Some(range),
+            is_builtin: true,
+        }
+    }
+
+    pub fn from_range(range: Range) -> Self {
+        Self {
+            range: Some(range),
+            is_builtin: false,
+        }
+    }
+
+    #[cfg(test)]
+    pub fn dummy() -> Self {
+        Self {
+            range: Some(Range {
+                start: Pos { line: 0, col: 0 },
+                end: Pos { line: 0, col: 0 },
+            }),
+            is_builtin: false,
+        }
+    }
+
+    #[cfg(not(test))]
+    pub fn dummy() -> Self {
+        Self {
+            range: None,
+            is_builtin: false,
         }
     }
 }
@@ -55,7 +98,6 @@ impl Info {
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
 pub struct Ident {
     pub id: usize,
-    pub is_builtin: bool,
 }
 
 static FRESH_IDENT_COUNT: AtomicUsize = AtomicUsize::new(0);
@@ -63,25 +105,11 @@ static FRESH_IDENT_COUNT: AtomicUsize = AtomicUsize::new(0);
 impl Ident {
     pub fn fresh() -> Self {
         let id = FRESH_IDENT_COUNT.fetch_add(1, SeqCst);
-        Self {
-            id,
-            is_builtin: false,
-        }
-    }
-
-    pub fn builtin_fresh() -> Self {
-        let id = FRESH_IDENT_COUNT.fetch_add(1, SeqCst);
-        Self {
-            id,
-            is_builtin: true,
-        }
+        Self { id }
     }
 
     pub fn with_id(id: usize) -> Self {
-        Self {
-            id,
-            is_builtin: false,
-        }
+        Self { id }
     }
 
     pub fn logical_symbol(&self) -> String {
@@ -90,10 +118,7 @@ impl Ident {
 
     #[cfg(test)]
     pub fn builtin_ident_with_id(id: usize) -> Self {
-        Self {
-            id,
-            is_builtin: true,
-        }
+        Self { id }
     }
 
     #[cfg(test)]

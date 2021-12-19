@@ -101,7 +101,7 @@ impl<'a> CodegenHelper<'a> {
         self.builder.position_at_end(else_block);
         let false_string = self
             .builder
-            .build_global_string_ptr("false", "builtin.string.true");
+            .build_global_string_ptr("false", "builtin.string.false");
         self.builder.build_call(
             printf_function,
             &[false_string.as_basic_value_enum().into()],
@@ -167,7 +167,6 @@ impl<'a> CodegenHelper<'a> {
             };
             value_env.insert(param_ident, param_value);
         }
-
         let ret_expr = self.build_expr(func.body, name_env, &value_env, function);
         self.builder.build_return(Some(&ret_expr));
     }
@@ -247,27 +246,30 @@ impl<'a> CodegenHelper<'a> {
                 value_env.insert(ident, var_value);
                 self.build_expr(*e2, name_env, &value_env, current_function)
             }
-            Expr::App(mut e1, e2, _) => {
+            Expr::App(e1, e2, _) => {
+                let mut func_expr = *e1;
                 // TODO: 部分適用の場合についても実装する
-                let mut args: Vec<BasicMetadataValueEnum> = vec![self
-                    .build_expr(*e2, name_env, value_env, current_function)
-                    .into()];
-                while let Expr::App(e1_, e2, _) = *e1 {
+                let mut args: Vec<BasicMetadataValueEnum> = vec![];
+                args.push(
+                    self.build_expr(*e2, name_env, value_env, current_function)
+                        .into(),
+                );
+                while let Expr::App(e1, e2, _) = func_expr {
                     args.push(
                         self.build_expr(*e2, name_env, value_env, current_function)
                             .into(),
                     );
-                    e1 = e1_
+                    func_expr = *e1;
                 }
                 let args = args.into_iter().rev().collect();
 
-                match *e1 {
-                    Expr::Var(ident, _) if ident.is_builtin => {
+                match func_expr {
+                    Expr::Var(ident, info) if info.is_builtin => {
                         self.build_builtin_call(ident, args, value_env)
                     }
                     _ => {
                         let func_value: CallableValue = self
-                            .build_expr(*e1, name_env, value_env, current_function)
+                            .build_expr(func_expr, name_env, value_env, current_function)
                             .into_pointer_value()
                             .try_into()
                             .unwrap();

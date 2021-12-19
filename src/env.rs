@@ -1,5 +1,5 @@
-use core::iter::Iterator;
 use std::collections::{hash_map, HashMap};
+use std::iter::{FromIterator, IntoIterator};
 
 use crate::ast::*;
 
@@ -17,7 +17,7 @@ impl<T> PartialEq for Env<T> {
     }
 }
 
-impl<T> std::iter::FromIterator<(Ident, T)> for Env<T> {
+impl<T> FromIterator<(Ident, T)> for Env<T> {
     fn from_iter<I>(iter: I) -> Self
     where
         I: IntoIterator<Item = (Ident, T)>,
@@ -26,11 +26,19 @@ impl<T> std::iter::FromIterator<(Ident, T)> for Env<T> {
     }
 }
 
-impl<T> std::iter::IntoIterator for Env<T> {
+impl<T> IntoIterator for Env<T> {
     type Item = (Ident, T);
     type IntoIter = hash_map::IntoIter<Ident, T>;
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a Env<T> {
+    type Item = (&'a Ident, &'a T);
+    type IntoIter = hash_map::Iter<'a, Ident, T>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
     }
 }
 
@@ -57,6 +65,10 @@ impl<T: std::fmt::Debug> Env<T> {
 
     pub fn try_lookup(&self, ident: Ident) -> Option<&T> {
         self.0.get(&ident)
+    }
+
+    pub fn idents<'a>(&'a self) -> hash_map::Keys<'a, Ident, T> {
+        self.0.keys()
     }
 }
 

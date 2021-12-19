@@ -1,1 +1,3 @@
-rec func main (x: int | true): (y: int | true) = main x
+rec func main (x: int | true): (y: int | true) =
+  let unused = main x in
+  0

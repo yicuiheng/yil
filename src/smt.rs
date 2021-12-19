@@ -28,7 +28,7 @@ pub fn check_validity(term: Term) -> SmtResult {
     let context = Context::new(&config);
     let solver = Solver::new(&context);
 
-    let (ast, consts) = bool_from_term(Term::Not(Box::new(term), Info::Dummy), &context);
+    let (ast, consts) = bool_from_term(Term::Not(Box::new(term), Info::dummy()), &context);
 
     solver.assert(&ast);
 
@@ -42,14 +42,11 @@ pub fn check_validity(term: Term) -> SmtResult {
                         let value = model.eval(&bool_, true).unwrap().as_bool().unwrap();
                         let id = bool_.to_string()[1..].parse().unwrap();
                         counter_examples.insert(
-                            Ident {
-                                id,
-                                is_builtin: false,
-                            },
+                            Ident { id },
                             if value {
-                                Term::True(Info::Dummy)
+                                Term::True(Info::dummy())
                             } else {
-                                Term::False(Info::Dummy)
+                                Term::False(Info::dummy())
                             },
                         );
                     }
@@ -57,11 +54,8 @@ pub fn check_validity(term: Term) -> SmtResult {
                         let value = model.eval(&int_, true).unwrap().as_i64().unwrap();
                         let id = int_.to_string()[1..].parse().unwrap();
                         counter_examples.insert(
-                            Ident {
-                                id,
-                                is_builtin: false,
-                            },
-                            Term::Num(value.try_into().unwrap(), Info::Dummy),
+                            Ident { id },
+                            Term::Num(value.try_into().unwrap(), Info::dummy()),
                         );
                     }
                 }

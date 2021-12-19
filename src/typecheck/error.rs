@@ -6,24 +6,24 @@ pub enum TypeError {
     UnexpectedSimpleType {
         actual: SimpleType,
         expected: SimpleType,
-        range: (Pos, Pos),
+        range: Range,
         msg: &'static str,
     },
     UnmatchSimpleType {
         type1: SimpleType,
-        range1: (Pos, Pos),
+        range1: Range,
         type2: SimpleType,
-        range2: (Pos, Pos),
+        range2: Range,
         msg: &'static str,
     },
     FunctionExpected {
         actual: SimpleType,
-        range: (Pos, Pos),
+        range: Range,
     },
     NotValidConstraint {
         counter_examples: HashMap<Ident, logic::Term>,
-        spec_range: (Pos, Pos),
-        impl_range: (Pos, Pos),
+        spec_range: Range,
+        impl_range: Range,
     },
 }
 

@@ -18,13 +18,13 @@ pub fn add_subtype_constraint(
         type_env
             .clone()
             .into_iter()
-            .fold(logic::Term::True(Info::Dummy), |acc, (_, typ)| {
+            .fold(logic::Term::True(Info::dummy()), |acc, (_, typ)| {
                 if let Type::BaseType(_, _, term, _) = typ {
                     logic::Term::Bin(
                         logic::BinOp::And,
                         Box::new(acc),
                         Box::new(term),
-                        Info::Dummy,
+                        Info::dummy(),
                     )
                 } else {
                     acc
@@ -39,7 +39,7 @@ pub fn add_subtype_constraint(
             let term1 = term1.clone();
             let term2 = term2
                 .clone()
-                .subst(*ident2, &logic::Term::Var(*ident1, Info::Dummy));
+                .subst(*ident2, &logic::Term::Var(*ident1, Info::dummy()));
             constraints.push(Constraint {
                 term: logic::Term::Bin(
                     logic::BinOp::Imply,
@@ -47,10 +47,10 @@ pub fn add_subtype_constraint(
                         logic::BinOp::And,
                         Box::new(env_term),
                         Box::new(term1),
-                        Info::Dummy,
+                        Info::dummy(),
                     )),
                     Box::new(term2),
-                    Info::Dummy,
+                    Info::dummy(),
                 ),
                 spec_range,
                 impl_range,

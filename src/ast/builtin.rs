@@ -51,20 +51,20 @@ impl std::iter::IntoIterator for &BuiltinData {
 impl BuiltinData {
     pub fn instance() -> &'static Self {
         INSTANCE.get_or_init(|| BuiltinData {
-            or_ident: Ident::builtin_fresh(),
-            and_ident: Ident::builtin_fresh(),
-            eq_ident: Ident::builtin_fresh(),
-            neq_ident: Ident::builtin_fresh(),
-            lt_ident: Ident::builtin_fresh(),
-            leq_ident: Ident::builtin_fresh(),
-            gt_ident: Ident::builtin_fresh(),
-            geq_ident: Ident::builtin_fresh(),
-            add_ident: Ident::builtin_fresh(),
-            sub_ident: Ident::builtin_fresh(),
-            mult_ident: Ident::builtin_fresh(),
-            div_ident: Ident::builtin_fresh(),
-            rem_ident: Ident::builtin_fresh(),
-            print_bool_ident: Ident::builtin_fresh(),
+            or_ident: Ident::fresh(),
+            and_ident: Ident::fresh(),
+            eq_ident: Ident::fresh(),
+            neq_ident: Ident::fresh(),
+            lt_ident: Ident::fresh(),
+            leq_ident: Ident::fresh(),
+            gt_ident: Ident::fresh(),
+            geq_ident: Ident::fresh(),
+            add_ident: Ident::fresh(),
+            sub_ident: Ident::fresh(),
+            mult_ident: Ident::fresh(),
+            div_ident: Ident::fresh(),
+            rem_ident: Ident::fresh(),
+            print_bool_ident: Ident::fresh(),
         })
     }
 
@@ -126,31 +126,31 @@ fn type_of(ident: Ident) -> Option<Type> {
     let inst = BuiltinData::instance();
 
     if inst.print_bool_ident == ident {
-        let func_ident = Ident::builtin_fresh();
-        let arg_ident = Ident::builtin_fresh();
-        let ret_ident = Ident::builtin_fresh();
+        let func_ident = Ident::fresh();
+        let arg_ident = Ident::fresh();
+        let ret_ident = Ident::fresh();
         return Some(Type::FuncType(
             func_ident,
             Box::new(Type::BaseType(
                 arg_ident,
                 BaseTypeKind::Bool,
-                Term::True(Info::Dummy),
-                Info::Dummy,
+                Term::True(Info::builtin()),
+                Info::builtin(),
             )),
             Box::new(Type::BaseType(
                 ret_ident,
                 BaseTypeKind::Int,
-                Term::True(Info::Dummy),
-                Info::Dummy,
+                Term::True(Info::builtin()),
+                Info::builtin(),
             )),
-            Info::Dummy,
+            Info::builtin(),
         ));
     }
 
-    let partial_app_func_ident = Ident::builtin_fresh();
-    let arg1_ident = Ident::builtin_fresh();
-    let arg2_ident = Ident::builtin_fresh();
-    let ret_ident = Ident::builtin_fresh();
+    let partial_app_func_ident = Ident::fresh();
+    let arg1_ident = Ident::fresh();
+    let arg2_ident = Ident::fresh();
+    let ret_ident = Ident::fresh();
 
     let make_logical = |op: BinOp| {
         (
@@ -160,31 +160,31 @@ fn type_of(ident: Ident) -> Option<Type> {
                     BinOp::Imply,
                     Box::new(Term::Bin(
                         op,
-                        Box::new(Term::Var(arg1_ident, Info::Dummy)),
-                        Box::new(Term::Var(arg2_ident, Info::Dummy)),
-                        Info::Dummy,
+                        Box::new(Term::Var(arg1_ident, Info::builtin())),
+                        Box::new(Term::Var(arg2_ident, Info::builtin())),
+                        Info::builtin(),
                     )),
-                    Box::new(Term::Var(ret_ident, Info::Dummy)),
-                    Info::Dummy,
+                    Box::new(Term::Var(ret_ident, Info::builtin())),
+                    Info::builtin(),
                 )),
                 Box::new(Term::Bin(
                     BinOp::Imply,
                     Box::new(Term::Not(
                         Box::new(Term::Bin(
                             op,
-                            Box::new(Term::Var(arg1_ident, Info::Dummy)),
-                            Box::new(Term::Var(arg2_ident, Info::Dummy)),
-                            Info::Dummy,
+                            Box::new(Term::Var(arg1_ident, Info::builtin())),
+                            Box::new(Term::Var(arg2_ident, Info::builtin())),
+                            Info::builtin(),
                         )),
-                        Info::Dummy,
+                        Info::builtin(),
                     )),
                     Box::new(Term::Not(
-                        Box::new(Term::Var(ret_ident, Info::Dummy)),
-                        Info::Dummy,
+                        Box::new(Term::Var(ret_ident, Info::builtin())),
+                        Info::builtin(),
                     )),
-                    Info::Dummy,
+                    Info::builtin(),
                 )),
-                Info::Dummy,
+                Info::builtin(),
             ),
             BaseTypeKind::Bool,
             BaseTypeKind::Bool,
@@ -198,31 +198,31 @@ fn type_of(ident: Ident) -> Option<Type> {
                     BinOp::Imply,
                     Box::new(Term::Bin(
                         op,
-                        Box::new(Term::Var(arg1_ident, Info::Dummy)),
-                        Box::new(Term::Var(arg2_ident, Info::Dummy)),
-                        Info::Dummy,
+                        Box::new(Term::Var(arg1_ident, Info::builtin())),
+                        Box::new(Term::Var(arg2_ident, Info::builtin())),
+                        Info::builtin(),
                     )),
-                    Box::new(Term::Var(ret_ident, Info::Dummy)),
-                    Info::Dummy,
+                    Box::new(Term::Var(ret_ident, Info::builtin())),
+                    Info::builtin(),
                 )),
                 Box::new(Term::Bin(
                     BinOp::Imply,
                     Box::new(Term::Not(
                         Box::new(Term::Bin(
                             op,
-                            Box::new(Term::Var(arg1_ident, Info::Dummy)),
-                            Box::new(Term::Var(arg2_ident, Info::Dummy)),
-                            Info::Dummy,
+                            Box::new(Term::Var(arg1_ident, Info::builtin())),
+                            Box::new(Term::Var(arg2_ident, Info::builtin())),
+                            Info::builtin(),
                         )),
-                        Info::Dummy,
+                        Info::builtin(),
                     )),
                     Box::new(Term::Not(
-                        Box::new(Term::Var(ret_ident, Info::Dummy)),
-                        Info::Dummy,
+                        Box::new(Term::Var(ret_ident, Info::builtin())),
+                        Info::builtin(),
                     )),
-                    Info::Dummy,
+                    Info::builtin(),
                 )),
-                Info::Dummy,
+                Info::builtin(),
             ),
             BaseTypeKind::Int,
             BaseTypeKind::Bool,
@@ -232,14 +232,14 @@ fn type_of(ident: Ident) -> Option<Type> {
         (
             Term::Bin(
                 BinOp::Eq,
-                Box::new(Term::Var(ret_ident, Info::Dummy)),
+                Box::new(Term::Var(ret_ident, Info::builtin())),
                 Box::new(Term::Bin(
                     op,
-                    Box::new(Term::Var(arg1_ident, Info::Dummy)),
-                    Box::new(Term::Var(arg2_ident, Info::Dummy)),
-                    Info::Dummy,
+                    Box::new(Term::Var(arg1_ident, Info::builtin())),
+                    Box::new(Term::Var(arg2_ident, Info::builtin())),
+                    Info::builtin(),
                 )),
-                Info::Dummy,
+                Info::builtin(),
             ),
             BaseTypeKind::Int,
             BaseTypeKind::Int,
@@ -281,25 +281,25 @@ fn type_of(ident: Ident) -> Option<Type> {
         Box::new(Type::BaseType(
             arg1_ident,
             arg_base_type_kind,
-            Term::True(Info::Dummy),
-            Info::Dummy,
+            Term::True(Info::builtin()),
+            Info::builtin(),
         )),
         Box::new(Type::FuncType(
             partial_app_func_ident,
             Box::new(Type::BaseType(
                 arg2_ident,
                 arg_base_type_kind,
-                Term::True(Info::Dummy),
-                Info::Dummy,
+                Term::True(Info::builtin()),
+                Info::builtin(),
             )),
             Box::new(Type::BaseType(
                 ret_ident,
                 ret_base_type_kind,
                 ret_term,
-                Info::Dummy,
+                Info::builtin(),
             )),
-            Info::Dummy,
+            Info::builtin(),
         )),
-        Info::Dummy,
+        Info::builtin(),
     ))
 }

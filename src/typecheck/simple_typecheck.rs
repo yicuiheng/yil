@@ -27,7 +27,7 @@ fn check_func(func: &Func, type_env: &SimpleTypeEnv) -> Result<(), TypeError> {
         count -= 1;
     }
 
-    let (actual_ret_type, start, end) = check_expr(&func.body, &type_env)?;
+    let (actual_ret_type, range) = check_expr(&func.body, &type_env)?;
     let expected_ret_type = SimpleType::from(ret_type);
     if actual_ret_type == expected_ret_type {
         Ok(())
@@ -35,68 +35,65 @@ fn check_func(func: &Func, type_env: &SimpleTypeEnv) -> Result<(), TypeError> {
         Err(TypeError::UnexpectedSimpleType {
             actual: actual_ret_type,
             expected: expected_ret_type,
-            range: (start, end),
+            range,
             msg: "the type of function body differs from the expected type",
         })
     }
 }
 
-pub fn check_expr(
-    expr: &Expr,
-    type_env: &SimpleTypeEnv,
-) -> Result<(SimpleType, Pos, Pos), TypeError> {
-    let (start, end) = expr.info().as_range();
+pub fn check_expr(expr: &Expr, type_env: &SimpleTypeEnv) -> Result<(SimpleType, Range), TypeError> {
+    let range = expr.info().range.unwrap();
     match expr {
-        Expr::Num(_, _) => Ok((SimpleType::BaseType(BaseTypeKind::Int), start, end)),
-        Expr::Boolean(_, _) => Ok((SimpleType::BaseType(BaseTypeKind::Bool), start, end)),
-        Expr::Var(ident, _) => Ok((type_env.lookup(*ident).clone(), start, end)),
+        Expr::Num(_, _) => Ok((SimpleType::BaseType(BaseTypeKind::Int), range)),
+        Expr::Boolean(_, _) => Ok((SimpleType::BaseType(BaseTypeKind::Bool), range)),
+        Expr::Var(ident, _) => Ok((type_env.lookup(*ident).clone(), range)),
         Expr::If(cond, expr1, expr2, _) => {
-            let (cond_type, start, end) = check_expr(cond, type_env)?;
+            let (cond_type, range) = check_expr(cond, type_env)?;
             if !cond_type.is_bool() {
                 return Err(TypeError::UnexpectedSimpleType {
                     actual: cond_type,
                     expected: SimpleType::BaseType(BaseTypeKind::Bool),
-                    range: (start, end),
+                    range,
                     msg: "if-condition expression must be boolean",
                 });
             }
-            let (type1, start1, end1) = check_expr(expr1, type_env)?;
-            let (type2, start2, end2) = check_expr(expr2, type_env)?;
+            let (type1, range1) = check_expr(expr1, type_env)?;
+            let (type2, range2) = check_expr(expr2, type_env)?;
             if type1 != type2 {
                 return Err(TypeError::UnmatchSimpleType {
                     type1,
-                    range1: (start1, end1),
+                    range1,
                     type2,
-                    range2: (start2, end2),
+                    range2,
                     msg: "`if` and `else` have incompatible types",
                 });
             }
-            Ok((type1, start1, end1))
+            Ok((type1, range1))
         }
         Expr::Let(ident, expr1, expr2, _) => {
-            let (type1, _, _) = check_expr(expr1, type_env)?;
+            let (type1, _) = check_expr(expr1, type_env)?;
             let mut type_env = type_env.clone();
             type_env.insert(*ident, type1);
             check_expr(expr2, &type_env)
         }
         Expr::App(expr1, expr2, _) => {
-            let (type1, start1, end1) = check_expr(expr1, type_env)?;
-            let (type2, start2, end2) = check_expr(expr2, type_env)?;
+            let (type1, range1) = check_expr(expr1, type_env)?;
+            let (type2, range2) = check_expr(expr2, type_env)?;
             if let SimpleType::FuncType(from_type, to_type) = type1 {
                 if *from_type == type2 {
-                    Ok((*to_type, start1, end2))
+                    Ok((*to_type, Range::merge(range1, range2)))
                 } else {
                     Err(TypeError::UnexpectedSimpleType {
                         actual: type2,
                         expected: *from_type,
-                        range: (start2, end2),
+                        range: range2,
                         msg: "mismatched types",
                     })
                 }
             } else {
                 Err(TypeError::FunctionExpected {
                     actual: type1,
-                    range: (start1, end1),
+                    range: range1,
                 })
             }
         }

@@ -10,7 +10,10 @@ fn check_well_typed_expr(e: Expr, typ: Type, type_env: &TypeEnv) {
     let mut constraints = vec![];
     let (typ_, type_env) = typecheck_expr(&e, &type_env, &mut constraints).unwrap();
     let dummy_pos = Pos { line: 0, col: 0 };
-    let dummy_range = (dummy_pos, dummy_pos);
+    let dummy_range = Range {
+        start: dummy_pos,
+        end: dummy_pos,
+    };
     constraint::add_subtype_constraint(
         &typ_,
         &typ,
@@ -28,7 +31,11 @@ fn check_ill_typed_expr(e: Expr, typ: Type, type_env: &TypeEnv) {
     let mut constraints = vec![];
     let (typ_, type_env) = typecheck_expr(&e, &type_env, &mut constraints).unwrap();
     let dummy_pos = Pos { line: 0, col: 0 };
-    let dummy_range = (dummy_pos, dummy_pos);
+    let dummy_range = Range {
+        start: dummy_pos,
+        end: dummy_pos,
+    };
+
     constraint::add_subtype_constraint(
         &typ_,
         &typ,
@@ -57,11 +64,11 @@ fn typecheck_expr_test() {
             BaseTypeKind::Int,
             Term::Bin(
                 BinOp::Geq,
-                Box::new(Term::Var(a_ident, Info::Dummy)),
-                Box::new(Term::Num(0, Info::Dummy)),
-                Info::Dummy,
+                Box::new(Term::Var(a_ident, Info::dummy())),
+                Box::new(Term::Num(0, Info::dummy())),
+                Info::dummy(),
             ),
-            Info::Dummy,
+            Info::dummy(),
         ),
     );
 
@@ -69,17 +76,17 @@ fn typecheck_expr_test() {
     Ident::set_fresh_count(init_id);
     let ret_ident = Ident::fresh();
     check_well_typed_expr(
-        Expr::Num(42, Info::Dummy),
+        Expr::Num(42, Info::dummy()),
         Type::BaseType(
             ret_ident,
             BaseTypeKind::Int,
             Term::Bin(
                 BinOp::Eq,
-                Box::new(Term::Var(ret_ident, Info::Dummy)),
-                Box::new(Term::Num(42, Info::Dummy)),
-                Info::Dummy,
+                Box::new(Term::Var(ret_ident, Info::dummy())),
+                Box::new(Term::Num(42, Info::dummy())),
+                Info::dummy(),
             ),
-            Info::Dummy,
+            Info::dummy(),
         ),
         &type_env,
     );
@@ -88,12 +95,12 @@ fn typecheck_expr_test() {
     Ident::set_fresh_count(init_id);
     let ret_ident = Ident::fresh();
     check_well_typed_expr(
-        Expr::Boolean(false, Info::Dummy),
+        Expr::Boolean(false, Info::dummy()),
         Type::BaseType(
             ret_ident,
             BaseTypeKind::Bool,
-            Term::Not(Box::new(Term::Var(ret_ident, Info::Dummy)), Info::Dummy),
-            Info::Dummy,
+            Term::Not(Box::new(Term::Var(ret_ident, Info::dummy())), Info::dummy()),
+            Info::dummy(),
         ),
         &type_env,
     );
@@ -102,17 +109,17 @@ fn typecheck_expr_test() {
     Ident::set_fresh_count(init_id);
     let ret_ident = Ident::fresh();
     check_well_typed_expr(
-        Expr::Var(a_ident, Info::Dummy),
+        Expr::Var(a_ident, Info::dummy()),
         Type::BaseType(
             ret_ident,
             BaseTypeKind::Int,
             Term::Bin(
                 BinOp::Geq,
-                Box::new(Term::Var(ret_ident, Info::Dummy)),
-                Box::new(Term::Num(-1, Info::Dummy)),
-                Info::Dummy,
+                Box::new(Term::Var(ret_ident, Info::dummy())),
+                Box::new(Term::Num(-1, Info::dummy())),
+                Info::dummy(),
             ),
-            Info::Dummy,
+            Info::dummy(),
         ),
         &type_env,
     );
@@ -123,23 +130,23 @@ fn typecheck_expr_test() {
     check_well_typed_expr(
         Expr::App(
             Box::new(Expr::App(
-                Box::new(Expr::Var(builtin.add_ident, Info::Dummy)),
-                Box::new(Expr::Var(a_ident, Info::Dummy)),
-                Info::Dummy,
+                Box::new(Expr::Var(builtin.add_ident, Info::dummy())),
+                Box::new(Expr::Var(a_ident, Info::dummy())),
+                Info::dummy(),
             )),
-            Box::new(Expr::Num(1, Info::Dummy)),
-            Info::Dummy,
+            Box::new(Expr::Num(1, Info::dummy())),
+            Info::dummy(),
         ),
         Type::BaseType(
             ret_ident,
             BaseTypeKind::Int,
             Term::Bin(
                 BinOp::Geq,
-                Box::new(Term::Var(ret_ident, Info::Dummy)),
-                Box::new(Term::Num(1, Info::Dummy)),
-                Info::Dummy,
+                Box::new(Term::Var(ret_ident, Info::dummy())),
+                Box::new(Term::Num(1, Info::dummy())),
+                Info::dummy(),
             ),
-            Info::Dummy,
+            Info::dummy(),
         ),
         &type_env,
     );
@@ -151,23 +158,23 @@ fn typecheck_expr_test() {
     check_well_typed_expr(
         Expr::Let(
             b_ident,
-            Box::new(Expr::Num(41, Info::Dummy)),
+            Box::new(Expr::Num(41, Info::dummy())),
             Box::new(Expr::App(
                 Box::new(Expr::App(
-                    Box::new(Expr::Var(builtin.add_ident, Info::Dummy)),
-                    Box::new(Expr::Var(b_ident, Info::Dummy)),
-                    Info::Dummy,
+                    Box::new(Expr::Var(builtin.add_ident, Info::dummy())),
+                    Box::new(Expr::Var(b_ident, Info::dummy())),
+                    Info::dummy(),
                 )),
-                Box::new(Expr::Num(1, Info::Dummy)),
-                Info::Dummy,
+                Box::new(Expr::Num(1, Info::dummy())),
+                Info::dummy(),
             )),
-            Info::Dummy,
+            Info::dummy(),
         ),
         Type::BaseType(
             ret_ident,
             BaseTypeKind::Int,
-            Term::True(Info::Dummy),
-            Info::Dummy,
+            Term::True(Info::dummy()),
+            Info::dummy(),
         ),
         &type_env,
     );
@@ -179,28 +186,28 @@ fn typecheck_expr_test() {
     check_well_typed_expr(
         Expr::Let(
             b_ident,
-            Box::new(Expr::Var(a_ident, Info::Dummy)),
+            Box::new(Expr::Var(a_ident, Info::dummy())),
             Box::new(Expr::App(
                 Box::new(Expr::App(
-                    Box::new(Expr::Var(builtin.add_ident, Info::Dummy)),
-                    Box::new(Expr::Var(b_ident, Info::Dummy)),
-                    Info::Dummy,
+                    Box::new(Expr::Var(builtin.add_ident, Info::dummy())),
+                    Box::new(Expr::Var(b_ident, Info::dummy())),
+                    Info::dummy(),
                 )),
-                Box::new(Expr::Num(1, Info::Dummy)),
-                Info::Dummy,
+                Box::new(Expr::Num(1, Info::dummy())),
+                Info::dummy(),
             )),
-            Info::Dummy,
+            Info::dummy(),
         ),
         Type::BaseType(
             ret_ident,
             BaseTypeKind::Int,
             Term::Bin(
                 BinOp::Geq,
-                Box::new(Term::Var(ret_ident, Info::Dummy)),
-                Box::new(Term::Num(1, Info::Dummy)),
-                Info::Dummy,
+                Box::new(Term::Var(ret_ident, Info::dummy())),
+                Box::new(Term::Num(1, Info::dummy())),
+                Info::dummy(),
             ),
-            Info::Dummy,
+            Info::dummy(),
         ),
         &type_env,
     );
@@ -211,23 +218,23 @@ fn typecheck_expr_test() {
     check_ill_typed_expr(
         Expr::App(
             Box::new(Expr::App(
-                Box::new(Expr::Var(builtin.add_ident, Info::Dummy)),
-                Box::new(Expr::Var(a_ident, Info::Dummy)),
-                Info::Dummy,
+                Box::new(Expr::Var(builtin.add_ident, Info::dummy())),
+                Box::new(Expr::Var(a_ident, Info::dummy())),
+                Info::dummy(),
             )),
-            Box::new(Expr::Num(2, Info::Dummy)),
-            Info::Dummy,
+            Box::new(Expr::Num(2, Info::dummy())),
+            Info::dummy(),
         ),
         Type::BaseType(
             ret_ident,
             BaseTypeKind::Int,
             Term::Bin(
                 BinOp::Geq,
-                Box::new(Term::Var(ret_ident, Info::Dummy)),
-                Box::new(Term::Num(3, Info::Dummy)),
-                Info::Dummy,
+                Box::new(Term::Var(ret_ident, Info::dummy())),
+                Box::new(Term::Num(3, Info::dummy())),
+                Info::dummy(),
             ),
-            Info::Dummy,
+            Info::dummy(),
         ),
         &type_env,
     );
@@ -238,28 +245,28 @@ fn typecheck_expr_test() {
     check_ill_typed_expr(
         Expr::App(
             Box::new(Expr::App(
-                Box::new(Expr::Var(builtin.add_ident, Info::Dummy)),
-                Box::new(Expr::Var(a_ident, Info::Dummy)),
-                Info::Dummy,
+                Box::new(Expr::Var(builtin.add_ident, Info::dummy())),
+                Box::new(Expr::Var(a_ident, Info::dummy())),
+                Info::dummy(),
             )),
-            Box::new(Expr::Num(2, Info::Dummy)),
-            Info::Dummy,
+            Box::new(Expr::Num(2, Info::dummy())),
+            Info::dummy(),
         ),
         Type::BaseType(
             ret_ident,
             BaseTypeKind::Int,
             Term::Bin(
                 BinOp::Geq,
-                Box::new(Term::Var(ret_ident, Info::Dummy)),
+                Box::new(Term::Var(ret_ident, Info::dummy())),
                 Box::new(Term::Bin(
                     BinOp::Add,
-                    Box::new(Term::Var(a_ident, Info::Dummy)),
-                    Box::new(Term::Num(3, Info::Dummy)),
-                    Info::Dummy,
+                    Box::new(Term::Var(a_ident, Info::dummy())),
+                    Box::new(Term::Num(3, Info::dummy())),
+                    Info::dummy(),
                 )),
-                Info::Dummy,
+                Info::dummy(),
             ),
-            Info::Dummy,
+            Info::dummy(),
         ),
         &type_env,
     );
@@ -270,26 +277,26 @@ fn typecheck_expr_test() {
     check_well_typed_expr(
         Expr::App(
             Box::new(Expr::App(
-                Box::new(Expr::Var(builtin.geq_ident, Info::Dummy)),
+                Box::new(Expr::Var(builtin.geq_ident, Info::dummy())),
                 Box::new(Expr::App(
                     Box::new(Expr::App(
-                        Box::new(Expr::Var(builtin.add_ident, Info::Dummy)),
-                        Box::new(Expr::Num(2, Info::Dummy)),
-                        Info::Dummy,
+                        Box::new(Expr::Var(builtin.add_ident, Info::dummy())),
+                        Box::new(Expr::Num(2, Info::dummy())),
+                        Info::dummy(),
                     )),
-                    Box::new(Expr::Num(2, Info::Dummy)),
-                    Info::Dummy,
+                    Box::new(Expr::Num(2, Info::dummy())),
+                    Info::dummy(),
                 )),
-                Info::Dummy,
+                Info::dummy(),
             )),
-            Box::new(Expr::Num(3, Info::Dummy)),
-            Info::Dummy,
+            Box::new(Expr::Num(3, Info::dummy())),
+            Info::dummy(),
         ),
         Type::BaseType(
             ret_ident,
             BaseTypeKind::Bool,
-            Term::Var(ret_ident, Info::Dummy),
-            Info::Dummy,
+            Term::Var(ret_ident, Info::dummy()),
+            Info::dummy(),
         ),
         &type_env,
     );

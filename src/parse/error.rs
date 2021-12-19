@@ -59,11 +59,11 @@ impl ParseError {
                 )
             }
             ParseError::UnboundVariable(name, info) => {
-                let range = info.as_range();
+                let range = info.range.unwrap();
                 writeln!(
                     out,
                     "unbound variable `{}` at ({}:{})",
-                    name, range.0.line, range.0.col
+                    name, range.start.line, range.start.col
                 )?;
                 write_lines_in_range(out, src, &range)?;
                 writeln!(out, "")

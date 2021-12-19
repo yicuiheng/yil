@@ -10,6 +10,7 @@ pub fn rule_to_str(rule: &Rule) -> &'static str {
         Rule::term => "logical term",
         Rule::and_term => "logical and-term",
         Rule::imply_term => "logical imply-term",
+        Rule::not_term => "logical not-term",
         Rule::binpred_term => "logical binary term",
         Rule::additive_term => "logical additive term",
         Rule::multive_term => "logical multive term",
@@ -66,22 +67,25 @@ pub fn rule_to_str(rule: &Rule) -> &'static str {
         Rule::kw_false => "'false'",
         Rule::EOI => "<eof>",
 
-        _ => unreachable!(),
+        _ => {
+            eprintln!("rule: {:?}", rule);
+            unreachable!()
+        }
     }
 }
 
 use pest::iterators::Pair;
-pub fn pair_to_info<R: pest::RuleType>(pair: &Pair<R>) -> Info {
+pub fn pair_to_range<R: pest::RuleType>(pair: &Pair<R>) -> Range {
     let (start_line, start_col) = pair.as_span().start_pos().line_col();
     let (end_line, end_col) = pair.as_span().end_pos().line_col();
-    Info::Range(
-        Pos {
+    Range {
+        start: Pos {
             line: start_line,
             col: start_col,
         },
-        Pos {
+        end: Pos {
             line: end_line,
             col: end_col,
         },
-    )
+    }
 }
