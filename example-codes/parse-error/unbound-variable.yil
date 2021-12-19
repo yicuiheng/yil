@@ -1,1 +1,1 @@
-rec func hoge (x: int | true): (y: int | true) = fuga
+rec func hoge (x: int): int = fuga

@@ -9,7 +9,10 @@ use pest::{
 };
 use std::collections::HashMap;
 
-use crate::{ast::*, env::NameEnv};
+use crate::{
+    ast::{logic::Term, *},
+    env::NameEnv,
+};
 use error::ParseError;
 use util::*;
 
@@ -250,7 +253,7 @@ fn binop<T, BinOpT: Copy>(
 fn term_from_pair(
     pair: Pair<Rule>,
     name_to_ident: &HashMap<String, Ident>,
-) -> Result<(logic::Term, NameEnv), ParseError> {
+) -> Result<(Term, NameEnv), ParseError> {
     use std::array::IntoIter;
     use std::iter::FromIterator;
 
@@ -264,14 +267,14 @@ fn term_from_pair(
             Rule::or,
             (|_| logic::BinOp::Or) as fn(Info) -> logic::BinOp,
         )])),
-        logic::Term::Bin,
+        Term::Bin,
     )
 }
 
 fn and_term_from_pair(
     pair: Pair<Rule>,
     name_to_ident: &HashMap<String, Ident>,
-) -> Result<(logic::Term, NameEnv), ParseError> {
+) -> Result<(Term, NameEnv), ParseError> {
     use std::array::IntoIter;
     use std::iter::FromIterator;
 
@@ -285,14 +288,14 @@ fn and_term_from_pair(
             Rule::and,
             (|_| logic::BinOp::And) as fn(Info) -> logic::BinOp,
         )])),
-        logic::Term::Bin,
+        Term::Bin,
     )
 }
 
 fn imply_term_from_pair(
     pair: Pair<Rule>,
     name_to_ident: &HashMap<String, Ident>,
-) -> Result<(logic::Term, NameEnv), ParseError> {
+) -> Result<(Term, NameEnv), ParseError> {
     use std::array::IntoIter;
     use std::iter::FromIterator;
 
@@ -306,14 +309,14 @@ fn imply_term_from_pair(
             Rule::fat_arrow,
             (|_| logic::BinOp::Imply) as fn(Info) -> logic::BinOp,
         )])),
-        logic::Term::Bin,
+        Term::Bin,
     )
 }
 
 fn not_term_from_pair(
     pair: Pair<Rule>,
     name_to_ident: &HashMap<String, Ident>,
-) -> Result<(logic::Term, NameEnv), ParseError> {
+) -> Result<(Term, NameEnv), ParseError> {
     assert_eq!(pair.as_rule(), Rule::not_term);
     let range = pair_to_range(&pair);
 
@@ -323,7 +326,7 @@ fn not_term_from_pair(
         Rule::exclamation => {
             let (inner, name_env) = binpred_term_from_pair(pairs.next().unwrap(), name_to_ident)?;
             Ok((
-                logic::Term::Not(Box::new(inner), Info::from_range(range)),
+                Term::Not(Box::new(inner), Info::from_range(range)),
                 name_env,
             ))
         }
@@ -335,7 +338,7 @@ fn not_term_from_pair(
 fn binpred_term_from_pair(
     pair: Pair<Rule>,
     name_to_ident: &HashMap<String, Ident>,
-) -> Result<(logic::Term, NameEnv), ParseError> {
+) -> Result<(Term, NameEnv), ParseError> {
     assert_eq!(pair.as_rule(), Rule::binpred_term);
     let range = pair_to_range(&pair);
 
@@ -359,7 +362,7 @@ fn binpred_term_from_pair(
             let (term2, name_env_) = additive_term_from_pair(pairs.next().unwrap(), name_to_ident)?;
             name_env.append(name_env_);
             (
-                logic::Term::Bin(
+                Term::Bin(
                     op,
                     Box::new(term1),
                     Box::new(term2),
@@ -375,17 +378,17 @@ fn binpred_term_from_pair(
             (term, name_env)
         }
         Rule::kw_true => (
-            logic::Term::True(Info::builtin_info_from_range(range)),
+            Term::True(Info::builtin_info_from_range(range)),
             NameEnv::empty(),
         ),
         Rule::kw_false => (
-            logic::Term::False(Info::builtin_info_from_range(range)),
+            Term::False(Info::builtin_info_from_range(range)),
             NameEnv::empty(),
         ),
         Rule::name => {
             let (name, info) = name_from_pair(pairs.next().unwrap());
             let id = *name_to_ident.get(&name).unwrap();
-            (logic::Term::Var(id, info), NameEnv::empty())
+            (Term::Var(id, info), NameEnv::empty())
         }
         _ => unreachable!(),
     })
@@ -394,7 +397,7 @@ fn binpred_term_from_pair(
 fn additive_term_from_pair(
     pair: Pair<Rule>,
     name_to_ident: &HashMap<String, Ident>,
-) -> Result<(logic::Term, NameEnv), ParseError> {
+) -> Result<(Term, NameEnv), ParseError> {
     use std::array::IntoIter;
     use std::iter::FromIterator;
     assert_eq!(pair.as_rule(), Rule::additive_term);
@@ -411,14 +414,14 @@ fn additive_term_from_pair(
             ),
             (Rule::minus, |_| logic::BinOp::Sub),
         ])),
-        logic::Term::Bin,
+        Term::Bin,
     )
 }
 
 fn multive_term_from_pair(
     pair: Pair<Rule>,
     name_to_ident: &HashMap<String, Ident>,
-) -> Result<(logic::Term, NameEnv), ParseError> {
+) -> Result<(Term, NameEnv), ParseError> {
     use std::array::IntoIter;
     use std::iter::FromIterator;
     assert_eq!(pair.as_rule(), Rule::multive_term);
@@ -436,14 +439,14 @@ fn multive_term_from_pair(
             (Rule::slash, |_| logic::BinOp::Div),
             (Rule::percent, |_| logic::BinOp::Rem),
         ])),
-        logic::Term::Bin,
+        Term::Bin,
     )
 }
 
 fn primary_term_from_pair(
     pair: Pair<Rule>,
     name_to_ident: &HashMap<String, Ident>,
-) -> Result<(logic::Term, NameEnv), ParseError> {
+) -> Result<(Term, NameEnv), ParseError> {
     assert_eq!(pair.as_rule(), Rule::primary_term);
     let range = pair_to_range(&pair);
     let mut pairs = pair.into_inner();
@@ -453,12 +456,12 @@ fn primary_term_from_pair(
         Rule::name => {
             let (name, info) = name_from_pair(pair);
             let id = *name_to_ident.get(&name).unwrap();
-            Ok((logic::Term::Var(id, info), NameEnv::empty()))
+            Ok((Term::Var(id, info), NameEnv::empty()))
         }
         Rule::number => {
             let n = number_from_pair(pair);
             Ok((
-                logic::Term::Num(n, Info::builtin_info_from_range(range)),
+                Term::Num(n, Info::builtin_info_from_range(range)),
                 NameEnv::empty(),
             ))
         }
@@ -499,32 +502,124 @@ fn base_refine_type_from_pair(
     let range = pair_to_range(&pair);
     let mut pairs = pair.into_inner();
 
-    assert_eq!(pairs.next().unwrap().as_rule(), Rule::left_paren);
+    let pair = pairs.next().unwrap();
+    if pair.as_rule() == Rule::kw_bool {
+        let ident = Ident::fresh();
+        return Ok((
+            Type::BaseType(
+                ident,
+                BaseTypeKind::Bool,
+                Term::True(Info::dummy()),
+                Info::from_range(range),
+            ),
+            NameEnv::empty(),
+        ));
+    } else if pair.as_rule() == Rule::kw_int {
+        let ident = Ident::fresh();
+        return Ok((
+            Type::BaseType(
+                ident,
+                BaseTypeKind::Int,
+                Term::True(Info::dummy()),
+                Info::from_range(range),
+            ),
+            NameEnv::empty(),
+        ));
+    }
 
-    let mut name_to_ident = name_to_ident.clone();
-    let mut name_env = NameEnv::empty();
-    let (name, _) = name_from_pair(pairs.next().unwrap());
-    let ident = Ident::fresh();
-    name_to_ident.insert(name.clone(), ident);
-    name_env.insert(ident, name);
+    assert_eq!(pair.as_rule(), Rule::left_paren);
 
-    assert_eq!(pairs.next().unwrap().as_rule(), Rule::colon);
+    let pair = pairs.next().unwrap();
+    let (typ, name_env) = match pair.as_rule() {
+        Rule::name => {
+            let mut name_to_ident = name_to_ident.clone();
+            let mut name_env = NameEnv::empty();
+            let (name, _) = name_from_pair(pair);
+            let ident = Ident::fresh();
+            name_to_ident.insert(name.clone(), ident);
+            name_env.insert(ident, name);
 
-    let base_type_kind = match pairs.next().unwrap().as_rule() {
-        Rule::kw_int => BaseTypeKind::Int,
-        Rule::kw_bool => BaseTypeKind::Bool,
+            assert_eq!(pairs.next().unwrap().as_rule(), Rule::colon);
+
+            let base_type_kind = match pairs.next().unwrap().as_rule() {
+                Rule::kw_int => BaseTypeKind::Int,
+                Rule::kw_bool => BaseTypeKind::Bool,
+                _ => unreachable!(),
+            };
+
+            let term = if pairs.peek().unwrap().as_rule() == Rule::bar {
+                assert_eq!(pairs.next().unwrap().as_rule(), Rule::bar);
+                let (term, name_env_) = term_from_pair(pairs.next().unwrap(), &name_to_ident)?;
+                name_env.append(name_env_);
+                term
+            } else {
+                Term::True(Info::dummy())
+            };
+
+            (
+                Type::BaseType(ident, base_type_kind, term, Info::from_range(range)),
+                name_env,
+            )
+        }
+        Rule::kw_bool => {
+            assert_eq!(pairs.next().unwrap().as_rule(), Rule::bar);
+            let (term, name_env) = term_from_pair(pairs.next().unwrap(), &name_to_ident)?;
+            let ident = Ident::fresh();
+            let constraint_term = Term::Bin(
+                logic::BinOp::And,
+                Box::new(Term::Bin(
+                    logic::BinOp::Imply,
+                    Box::new(term.clone()),
+                    Box::new(Term::Var(ident, Info::dummy())),
+                    Info::dummy(),
+                )),
+                Box::new(Term::Bin(
+                    logic::BinOp::Imply,
+                    Box::new(Term::Not(Box::new(term), Info::dummy())),
+                    Box::new(Term::Not(
+                        Box::new(Term::Var(ident, Info::dummy())),
+                        Info::dummy(),
+                    )),
+                    Info::dummy(),
+                )),
+                Info::dummy(),
+            );
+
+            (
+                Type::BaseType(
+                    ident,
+                    BaseTypeKind::Bool,
+                    constraint_term,
+                    Info::from_range(range),
+                ),
+                name_env,
+            )
+        }
+        Rule::kw_int => {
+            assert_eq!(pairs.next().unwrap().as_rule(), Rule::bar);
+            let (term, name_env) = additive_term_from_pair(pairs.next().unwrap(), &name_to_ident)?;
+            let ident = Ident::fresh();
+            let constraint_term = Term::Bin(
+                logic::BinOp::Eq,
+                Box::new(Term::Var(ident, Info::dummy())),
+                Box::new(term),
+                Info::dummy(),
+            );
+            (
+                Type::BaseType(
+                    ident,
+                    BaseTypeKind::Int,
+                    constraint_term,
+                    Info::from_range(range),
+                ),
+                name_env,
+            )
+        }
         _ => unreachable!(),
     };
 
-    assert_eq!(pairs.next().unwrap().as_rule(), Rule::bar);
-    let (term, name_env_) = term_from_pair(pairs.next().unwrap(), &name_to_ident)?;
-    name_env.append(name_env_);
     assert_eq!(pairs.next().unwrap().as_rule(), Rule::right_paren);
-
-    Ok((
-        Type::BaseType(ident, base_type_kind, term, Info::from_range(range)),
-        name_env,
-    ))
+    Ok((typ, name_env))
 }
 
 fn func_refine_type_from_pair(

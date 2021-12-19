@@ -276,6 +276,105 @@ fn parse_type_test() {
             .collect()
         )
     );
+
+    let actual = typ("(x: int)").unwrap();
+    Ident::set_fresh_count(init_id);
+    assert_eq!(
+        actual,
+        (
+            Type::BaseType(
+                Ident::with_id(init_id),
+                BaseTypeKind::Int,
+                logic::Term::True(Info::dummy()),
+                Info::dummy()
+            ),
+            vec![(Ident::with_id(init_id), "x".to_string())]
+                .into_iter()
+                .collect()
+        )
+    );
+
+    let actual = typ("(x: bool)").unwrap();
+    Ident::set_fresh_count(init_id);
+    assert_eq!(
+        actual,
+        (
+            Type::BaseType(
+                Ident::with_id(init_id),
+                BaseTypeKind::Bool,
+                logic::Term::True(Info::dummy()),
+                Info::dummy()
+            ),
+            vec![(Ident::with_id(init_id), "x".to_string())]
+                .into_iter()
+                .collect()
+        )
+    );
+
+    let actual = typ("(bool | true)").unwrap();
+    Ident::set_fresh_count(init_id);
+    assert_eq!(
+        actual,
+        (
+            Type::BaseType(
+                Ident::with_id(init_id),
+                BaseTypeKind::Bool,
+                logic::Term::True(Info::dummy()),
+                Info::dummy()
+            ),
+            vec![].into_iter().collect()
+        )
+    );
+
+    let actual = typ("bool").unwrap();
+    Ident::set_fresh_count(init_id);
+    assert_eq!(
+        actual,
+        (
+            Type::BaseType(
+                Ident::with_id(init_id),
+                BaseTypeKind::Bool,
+                logic::Term::True(Info::dummy()),
+                Info::dummy()
+            ),
+            vec![].into_iter().collect()
+        )
+    );
+
+    let actual = typ("(int | 42)").unwrap();
+    Ident::set_fresh_count(init_id);
+    assert_eq!(
+        actual,
+        (
+            Type::BaseType(
+                Ident::with_id(init_id),
+                BaseTypeKind::Int,
+                logic::Term::Bin(
+                    logic::BinOp::Eq,
+                    Box::new(logic::Term::Var(Ident::with_id(init_id), Info::dummy())),
+                    Box::new(logic::Term::Num(42, Info::dummy())),
+                    Info::dummy()
+                ),
+                Info::dummy()
+            ),
+            vec![].into_iter().collect()
+        )
+    );
+
+    let actual = typ("int").unwrap();
+    Ident::set_fresh_count(init_id);
+    assert_eq!(
+        actual,
+        (
+            Type::BaseType(
+                Ident::with_id(init_id),
+                BaseTypeKind::Int,
+                logic::Term::True(Info::dummy()),
+                Info::dummy()
+            ),
+            vec![].into_iter().collect()
+        )
+    );
 }
 
 #[test]

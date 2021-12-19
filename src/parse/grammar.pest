@@ -7,7 +7,12 @@ refine_type = {
     func_refine_type |
     left_paren ~ refine_type ~ right_paren }
 
-base_refine_type = { left_paren ~ name ~ colon ~ (kw_int|kw_bool) ~ bar ~ term ~ right_paren }
+base_refine_type = {
+    (left_paren ~ name ~ colon ~ (kw_int|kw_bool) ~ (bar ~ term)? ~ right_paren) |
+    (left_paren ~ kw_bool ~ bar ~ term ~ right_paren) |
+    (left_paren ~ kw_int ~ bar ~ additive_term ~ right_paren) |
+    kw_bool | kw_int }
+
 func_refine_type = { left_paren ~ name ~ colon ~ refine_type ~ (arrow ~ refine_type)+ ~ right_paren }
 
 term = { and_term ~ (or ~ and_term)* }

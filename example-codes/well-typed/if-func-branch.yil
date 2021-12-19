@@ -1,9 +1,9 @@
-rec func hoge (x: int | x >= 1): (y: int | y >= 2) = x + 1
+rec func hoge (x: int | x >= 1): (ret: int | ret >= 2) = x + 1
 
-rec func fuga (x: int | x >= -1): (y: int | y >= 3) = x + 4
+rec func fuga (x: int | x >= -1): (ret: int | ret >= 3) = x + 4
 
-rec func piyo (x: int | true): (f: (x_1: int | x_1 >= 1) -> (y: int | y >= 1)) =
+rec func piyo (x: int): (f: (x_1: int | x_1 >= 1) -> (y: int | y >= 1)) =
   if x = 0 { hoge }
   else { fuga }
 
-rec func main (x: int | true): (ret: int | true) = 0
+rec func main (x: int): int = 0

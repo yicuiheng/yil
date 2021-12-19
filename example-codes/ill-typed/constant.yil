@@ -1,1 +1,1 @@
-rec func hoge (x: int | true): (y: int | y >= 0) = -1
+rec func hoge (x: int): (ret: int | ret >= 0) = -1

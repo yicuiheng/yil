@@ -1,6 +1,6 @@
-rec func hoge (x: int | true): (ret: bool | ret) =
+rec func hoge (x: int): (bool | true) =
   (1 + 2) >= 3
 
-rec func main (a: int | true): (ret: int | true) =
+rec func main (a: int): int =
   let unused = hoge 0 in
   0

@@ -1,1 +1,1 @@
-rec func main (x: int | true): (y: int | true) = 0
+rec func main (x: int): int = 0
