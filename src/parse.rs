@@ -1,6 +1,6 @@
 pub mod error;
 mod test;
-mod util;
+pub mod util;
 
 use itertools::Position;
 use pest::{
@@ -1032,6 +1032,7 @@ fn variable_from_pair(
     pair: Pair<Rule>,
     name_to_ident: &HashMap<String, Ident>,
 ) -> Result<(Expr, NameEnv), ParseError> {
+    use crate::error::Location;
     assert_eq!(pair.as_rule(), Rule::variable);
     let mut pairs = pair.into_inner();
     let pair = pairs.next().unwrap();
@@ -1039,7 +1040,9 @@ fn variable_from_pair(
     let (name, info) = name_from_pair(pair);
     let ident = *name_to_ident
         .get(&name)
-        .ok_or_else(|| ParseError::UnboundVariable(name, info))?;
+        .ok_or_else(|| ParseError::UnboundVariable {
+            location: Location::from_info(info).expect("unreachable"),
+        })?;
     Ok((Expr::Var(ident, info), NameEnv::empty()))
 }
 

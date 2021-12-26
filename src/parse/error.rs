@@ -1,72 +1,85 @@
 use itertools::Itertools;
-use pest::error;
 
 use super::*;
-use crate::error_report_util::{write_line_at_pos, write_lines_in_range};
+use crate::ast;
+use crate::error::{Diagnostic, Error, Kind, Location};
 
 #[derive(Debug)]
 pub enum ParseError {
-    Pest(error::Error<Rule>),
-    UnboundVariable(String, Info),
+    UnexpectedToken {
+        location: Location,
+        expected: Vec<Rule>,
+    },
+    UnboundVariable {
+        location: Location,
+    },
 }
 
-impl From<error::Error<Rule>> for ParseError {
-    fn from(item: error::Error<Rule>) -> Self {
-        Self::Pest(item)
-    }
-}
-
-use std::io::{stderr, BufWriter, Write};
-impl ParseError {
-    pub fn print(&self, src: &Vec<&str>) -> Result<(), std::io::Error> {
-        let stderr = stderr();
-        let mut out = BufWriter::new(stderr.lock());
-        let out = &mut out;
-        write!(out, "[parse error] ")?;
+impl Error for ParseError {
+    fn to_diagnostic(self, _: &NameEnv) -> Diagnostic {
         match self {
-            ParseError::Pest(error::Error {
-                variant: error::ErrorVariant::ParsingError { positives, .. },
-                line_col,
-                ..
-            }) => {
-                let (line, col) = match line_col {
-                    error::LineColLocation::Pos((line, col)) => (line, col),
-                    error::LineColLocation::Span((line, col), _) => (line, col),
-                };
-
-                writeln!(out, "unexpected token at ({}:{})", line, col)?;
-                write!(out, " expected ")?;
-                for e in positives.iter().with_position() {
+            ParseError::UnexpectedToken { location, expected } => {
+                let mut msg = format!("unexpected token, expected ");
+                for e in expected.iter().with_position() {
                     match e {
                         Position::First(rule) | Position::Middle(rule) => {
-                            write!(out, "{}, ", rule_to_str(rule))?;
+                            msg += format!("{}, ", rule_to_str(rule)).as_str();
                         }
-                        Position::Last(rule) => {
-                            write!(out, "{}\n", rule_to_str(rule))?;
-                        }
-                        Position::Only(rule) => {
-                            write!(out, "{}\n", rule_to_str(rule))?;
+                        Position::Last(rule) | Position::Only(rule) => {
+                            msg += rule_to_str(rule);
                         }
                     }
                 }
-                write_line_at_pos(
-                    out,
-                    src,
-                    &Pos {
-                        line: *line,
-                        col: *col,
-                    },
-                )
+                Diagnostic {
+                    loc: location,
+                    kind: Kind::ParseError,
+                    msg,
+                }
             }
-            ParseError::UnboundVariable(name, info) => {
-                let range = info.range.unwrap();
-                writeln!(
-                    out,
-                    "unbound variable `{}` at ({}:{})",
-                    name, range.start.line, range.start.col
-                )?;
-                write_lines_in_range(out, src, &range)?;
-                writeln!(out, "")
+            ParseError::UnboundVariable { location } => Diagnostic {
+                loc: location,
+                kind: Kind::ParseError,
+                msg: "unbound variable".to_string(),
+            },
+        }
+    }
+
+    fn location(&self) -> Location {
+        match self {
+            ParseError::UnexpectedToken { location, .. } => location.clone(),
+            ParseError::UnboundVariable { location } => location.clone(),
+        }
+    }
+}
+
+impl From<pest::error::Error<Rule>> for ParseError {
+    fn from(item: pest::error::Error<Rule>) -> Self {
+        use pest::error::*;
+        match item {
+            Error {
+                variant: ErrorVariant::ParsingError { positives, .. },
+                line_col,
+                ..
+            } => {
+                let location = match line_col {
+                    LineColLocation::Pos((line, col)) => Location::Position(ast::Pos { line, col }),
+                    LineColLocation::Span((start_line, start_col), (end_line, end_col)) => {
+                        Location::Range(ast::Range {
+                            start: ast::Pos {
+                                line: start_line,
+                                col: start_col,
+                            },
+                            end: ast::Pos {
+                                line: end_line,
+                                col: end_col,
+                            },
+                        })
+                    }
+                };
+                ParseError::UnexpectedToken {
+                    location,
+                    expected: positives,
+                }
             }
             _ => unreachable!(),
         }

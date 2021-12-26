@@ -60,11 +60,10 @@ pub fn check_expr(expr: &Expr, type_env: &SimpleTypeEnv) -> Result<(SimpleType, 
             let (type1, range1) = check_expr(expr1, type_env)?;
             let (type2, range2) = check_expr(expr2, type_env)?;
             if type1 != type2 {
-                return Err(TypeError::UnmatchSimpleType {
-                    type1,
-                    range1,
-                    type2,
-                    range2,
+                return Err(TypeError::UnexpectedSimpleType {
+                    actual: type2,
+                    expected: type1,
+                    range: range2,
                     msg: "`if` and `else` have incompatible types",
                 });
             }

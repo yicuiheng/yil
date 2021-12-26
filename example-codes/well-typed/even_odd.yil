@@ -1,3 +1,5 @@
+func hoge (x: int) : bool = x
+
 rec func is_even (n:int | n >= 0): (bool | n % 2 = 0) =
   if n = 0 { true }
   else { is_odd (n - 1) }
@@ -7,5 +9,5 @@ rec func is_odd (n:int | n >= 0): (bool | n % 2 != 0) =
   else { is_even (n - 1) }
 
 func main (a: int): int =
-   let unused = print_bool (is_even 42) in
-   0
+   let unused = is_even 42 in
+   0 

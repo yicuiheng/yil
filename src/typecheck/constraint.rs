@@ -81,16 +81,16 @@ pub fn add_subtype_constraint(
 pub fn solve_constraints(constraints: Vec<Constraint>) -> Result<(), TypeError> {
     for constraint in constraints {
         match smt::check_validity(constraint.term.clone()) {
-            smt::SmtResult::CounterExamplesFound(counter_examples) => {
+            smt::SmtResult::CounterExamplesFound(counter_example) => {
                 return Err(TypeError::NotValidConstraint {
-                    counter_examples,
+                    counter_example,
                     spec_range: constraint.spec_range,
                     impl_range: constraint.impl_range,
                 });
             }
             smt::SmtResult::Unknown => {
                 return Err(TypeError::NotValidConstraint {
-                    counter_examples: HashMap::new(),
+                    counter_example: HashMap::new(),
                     spec_range: constraint.spec_range,
                     impl_range: constraint.impl_range,
                 });

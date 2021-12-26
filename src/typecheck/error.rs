@@ -1,4 +1,4 @@
-use crate::{ast::*, env::NameEnv, error_report_util::write_lines_in_range};
+use crate::{ast::*, env::NameEnv};
 use std::collections::HashMap;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -9,79 +9,80 @@ pub enum TypeError {
         range: Range,
         msg: &'static str,
     },
-    UnmatchSimpleType {
-        type1: SimpleType,
-        range1: Range,
-        type2: SimpleType,
-        range2: Range,
-        msg: &'static str,
-    },
     FunctionExpected {
         actual: SimpleType,
         range: Range,
     },
     NotValidConstraint {
-        counter_examples: HashMap<Ident, logic::Term>,
+        counter_example: HashMap<Ident, logic::Term>,
         spec_range: Range,
         impl_range: Range,
     },
 }
 
-use std::io::{stderr, BufWriter, Write};
-impl TypeError {
-    pub fn print(&self, name_env: &NameEnv, src: &Vec<&str>) -> Result<(), std::io::Error> {
-        let stderr = stderr();
-        let mut out = BufWriter::new(stderr.lock());
-        let out = &mut out;
-        write!(out, "[type error] ")?;
+use crate::error::{Diagnostic, Error, Kind, Location};
+impl Error for TypeError {
+    fn to_diagnostic(self, name_env: &NameEnv) -> Diagnostic {
         match self {
             TypeError::UnexpectedSimpleType {
                 actual,
                 expected,
+                msg: inner_msg,
                 range,
-                msg,
             } => {
-                writeln!(out, "{}", msg)?;
-                write_lines_in_range(out, src, range)?;
-                writeln!(out, " expected `{}`, found `{}`", expected, actual)
-            }
-            TypeError::UnmatchSimpleType {
-                type1,
-                range1,
-                type2,
-                range2,
-                msg,
-            } => {
-                writeln!(out, "{}", msg)?;
-                write_lines_in_range(out, src, range1)?;
-                writeln!(out, " {}", type1)?;
-                write_lines_in_range(out, src, range2)?;
-                writeln!(out, " {}", type2)
+                let msg = format!(
+                    "{}. expected `{}`, found `{}`.",
+                    inner_msg, expected, actual
+                );
+                Diagnostic {
+                    loc: Location::Range(range),
+                    kind: Kind::TypeError,
+                    msg,
+                }
             }
             TypeError::FunctionExpected { actual, range } => {
-                writeln!(out, "function expected, but found `{}`", actual)?;
-                write_lines_in_range(out, src, range)?;
-                writeln!(out, "here")
+                let msg = format!("function expected, but found `{}`", actual);
+                Diagnostic {
+                    loc: Location::Range(range),
+                    kind: Kind::TypeError,
+                    msg,
+                }
             }
             TypeError::NotValidConstraint {
-                counter_examples,
+                counter_example,
                 spec_range,
                 impl_range,
             } => {
-                writeln!(out, "given implementation does not meet specification")?;
-                write_lines_in_range(out, src, impl_range)?;
-                writeln!(out, " implementation")?;
-                writeln!(out, "  vs.")?;
-                write_lines_in_range(out, src, spec_range)?;
-                writeln!(out, " specification")?;
-                writeln!(out, "\ncounter example [")?;
-                for (ident, term) in counter_examples {
-                    if let Some(name) = name_env.try_lookup(*ident) {
-                        writeln!(out, "  {} = {},", name, term.to_readable_string(name_env))?;
+                let mut msg = format!(
+                    "this implementation does not meet specification at ({}:{}-{}:{}).\n",
+                    spec_range.start.line,
+                    spec_range.start.col,
+                    spec_range.end.line,
+                    spec_range.end.col
+                );
+                msg += "the specification is not satisfied when\n";
+                msg += "[\n";
+                for (ident, term) in counter_example {
+                    if let Some(name) = name_env.try_lookup(ident) {
+                        msg += format!("  {} = {}\n", name, term.to_readable_string(name_env))
+                            .as_str();
                     }
                 }
-                writeln!(out, "]")
+                msg += "]";
+                Diagnostic {
+                    loc: Location::Range(impl_range),
+                    kind: Kind::TypeError,
+                    msg,
+                }
             }
+        }
+    }
+
+    fn location(&self) -> Location {
+        match self {
+            TypeError::UnexpectedSimpleType { range, .. } => Location::Range(range.clone()),
+            TypeError::FunctionExpected { range, .. } => Location::Range(range.clone()),
+            TypeError::NotValidConstraint { impl_range, .. } => Location::Range(impl_range.clone()),
         }
     }
 }
